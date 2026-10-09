@@ -45,14 +45,15 @@ public class SearchCommand : MaiCommandBase
         
         var artistRangeString = commandContext.GetFlag("--artist");
         var artistPredicate = CreateArtistPredicate(artistRangeString);
+        
+        var aliasPredicate = CreateSongAliasPredicate(commandContext.Argument);
 
-        searchResult.AddRange(DataManager?.Songs.Where(x => bpmPredicate(x) && songNamePredicate(x)
-        && artistPredicate(x)) ?? []);
+        searchResult.AddRange(DataManager?.Songs.Where(x => bpmPredicate(x) && (songNamePredicate(x) || aliasPredicate(x)) && artistPredicate(x)) ?? []);
         
         await SendMessage(context, [BuildSearchResultString(searchResult)]);
     }
 
-    private static Func<MaiSongDto, bool> CreateSongNamePredicate(string? value)
+    public static Func<MaiSongDto, bool> CreateSongNamePredicate(string? value)
     {
         if (value?.Length == 0)
         {
@@ -63,6 +64,18 @@ public class SearchCommand : MaiCommandBase
         return x => MaiDataManager.Instance?.SongNameSearchKeys[x].ToLower().Contains(inputKey.ToLower()) ?? false;
     }
     
+    public static Func<MaiSongDto, bool> CreateSongAliasPredicate(string? value)
+    {
+        if (value?.Length == 0)
+        {
+            return _ => true;
+        }
+        
+        var inputKey = SearchHelper.NormalizeCjkString(value ?? "");
+        return x => MaiDataManager.Instance?.AliasSearchKeys[x].Any(y => y.ToLower().Contains(inputKey.ToLower())) ??
+                    false;
+    }
+    
     private static Func<MaiSongDto, bool> CreateArtistPredicate(string? value)
     {
         if (value?.Length == 0)
@@ -71,7 +84,7 @@ public class SearchCommand : MaiCommandBase
         }
         
         var inputKey = SearchHelper.NormalizeCjkString(value ?? "");
-        return x => MaiDataManager.Instance?.ArtistSearchValues[x].ToLower().Contains(inputKey.ToLower()) ?? false;
+        return x => MaiDataManager.Instance?.ArtistSearchKeys[x].ToLower().Contains(inputKey.ToLower()) ?? false;
     }
 
     private static Func<MaiSongDto, bool> CreateBpmPredicate(string? value)
@@ -104,33 +117,31 @@ public class SearchCommand : MaiCommandBase
             (upper == 0 || x.SongBpm <= upper);
     }
 
-    private string BuildSearchResultString(IEnumerable<MaiSongDto> songs)
+    private static string BuildSearchResultString(IEnumerable<MaiSongDto> songs)
     {
-        var songsList = songs.ToList();
+        var songsSet = songs.ToHashSet();
+        
+        var count = songsSet.Count;
 
-        if (songsList.Count == 0)
+        if (count == 0)
         {
             return "未找到符合条件的乐曲";
         }
         
-        if (songsList.Count > 50)
+        if (count > 50)
         {
             return "结果过多，请缩小查询范围";
         }
         
         var stringBuilder = new StringBuilder("找到了如下歌曲：\n");
 
-        foreach (var maiSongDto in songsList)
+        foreach (var maiSongDto in songsSet)
         {
             stringBuilder.Append("SID" + maiSongDto.SapphireId);
             if (maiSongDto.SongId != null)
                 stringBuilder.Append(" · ID" + maiSongDto.SongId);
             stringBuilder.Append(". ");
-            if (maiSongDto.SongType!= MaiSongType.Utage)
-                stringBuilder.Append($"[{maiSongDto.SongType.ToString()?.ToUpper() ?? "UNKNOWN"}] ");
-            stringBuilder.Append(maiSongDto.SongName);
-            stringBuilder.Append(" - ");
-            stringBuilder.AppendLine(maiSongDto.ArtistName);
+            stringBuilder.AppendLine(NormalizeSongNameString(maiSongDto));
         }
         
         return stringBuilder.ToString().Trim();

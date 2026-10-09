@@ -8,7 +8,8 @@ namespace Sapphire.Data.Mai.Database;
 public class MaiMetadataContext : DbContext
 {
     public DbSet<MaiSongDto> MaiSongs { get; init; }
-    
+    public DbSet<MaiAliasDto> MaiAliases { get; init; }
+
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
         optionsBuilder.UseNpgsql(SpEnvironmentHandler.Instance?.Environment.Database.SqlConnectionString);
@@ -31,5 +32,10 @@ public class MaiMetadataContext : DbContext
             .HasForeignKey(a => a.SapphireId);
 
         chartEntityBuilder.HasKey(x => x.ChartId);
+        
+        var aliasEntityBuilder = modelBuilder.Entity<MaiAliasDto>();
+        aliasEntityBuilder.HasOne(x => x.Song);
+        
+        aliasEntityBuilder.HasKey(x => x.AliasId);
     }
 }

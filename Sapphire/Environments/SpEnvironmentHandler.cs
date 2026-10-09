@@ -19,7 +19,8 @@ public class SpEnvironmentHandler
             Environment = new SpEnvironment
             {
                 NapCat = new NapCatEnvironment(),
-                Database = new DatabaseEnvironment()
+                Database = new DatabaseEnvironment(),
+                DivingFish = new DivingFishEnvironment()
             };
             
             File.WriteAllText(path, TomlSerializer.Serialize(Environment));

@@ -9,6 +9,11 @@ public class CommandParser(IEnumerable<CommandBase> rootCommands, string[] comma
 {
     public async Task ParseAndExecute(CqMessagePostContext context)
     {
+        foreach (var rootCommand in rootCommands)
+        {
+            await rootCommand.ReceiveDirectly(context);
+        }
+        
         if (SettingsDataManager.Instance == null)
             return;
         
@@ -23,7 +28,7 @@ public class CommandParser(IEnumerable<CommandBase> rootCommands, string[] comma
             SettingsDataManager.Instance.GetValue(context, "lite_commands.enabled"));
         if (matchedCmd == null) return;
 
-        if (!(SettingsDataManager.Instance?.GetValue(context, matchedCmd.ActivationSettingsIdentifier) ?? true))
+        if (!SettingsDataManager.Instance.GetValue(context, matchedCmd.ActivationSettingsIdentifier))
             return;
 
         var rawTokens = tokens.Skip(consumedTokens).ToList();

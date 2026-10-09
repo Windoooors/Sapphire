@@ -1,6 +1,7 @@
 using EleCho.GoCqHttpSdk;
 using Sapphire.Environments;
 using Sapphire.Environments.SubEnvironments;
+using Serilog;
 
 namespace Sapphire.Utils;
 
@@ -28,18 +29,20 @@ public class BotSessionHandler
 
     public async Task RunSession(CancellationToken cancellationToken, Action<CqWsSession> onSessionConnected)
     {
-        _lastHeartbeatTime = DateTime.Now;
+        _lastHeartbeatTime = DateTime.UtcNow;
 
         while (true)
         {
             if (cancellationToken.IsCancellationRequested)
                 break;
 
-            if ((DateTime.Now - _lastHeartbeatTime).TotalMilliseconds >= _napCatEnvironment.HeartBeatInterval)
+            if ((DateTime.UtcNow - _lastHeartbeatTime).TotalMilliseconds >= _napCatEnvironment.HeartBeatInterval)
                 _heartBeating = false;
 
             if (Session == null || !Session.IsConnected || !_heartBeating)
             {
+                Log.Information("Sapphire is trying to connect with NapCat...");
+                
                 if (Session != null)
                     await Session.StopAsync();
 
@@ -56,15 +59,20 @@ public class BotSessionHandler
 
                 if (Session.IsConnected)
                 {
-                    if (!_heartBeating) onSessionConnected?.Invoke(Session);
+                    if (!_heartBeating)
+                    {
+                        onSessionConnected?.Invoke(Session);
+                        
+                        Log.Information("Sapphire is connected with NapCat.");
+                    }
 
                     _heartBeating = true;
-                    _lastHeartbeatTime = DateTime.Now;
+                    _lastHeartbeatTime = DateTime.UtcNow;
                 }
 
                 Session.UseHeartbeat(async (_, next) =>
                 {
-                    _lastHeartbeatTime = DateTime.Now;
+                    _lastHeartbeatTime = DateTime.UtcNow;
 
                     await next.Invoke();
                 });

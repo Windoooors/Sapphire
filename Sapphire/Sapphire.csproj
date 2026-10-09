@@ -23,8 +23,15 @@
       </PackageReference>
       <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.3" />
       <PackageReference Include="OpenccNetLib" Version="1.7.0" />
+      <PackageReference Include="Serilog" Version="4.4.1-dev-02447" />
+      <PackageReference Include="Serilog.Sinks.Console" Version="6.1.1" />
+      <PackageReference Include="Serilog.Sinks.File" Version="8.0.0-nblumhardt-02322" />
       <PackageReference Include="System.Text.Json" Version="11.0.0-preview.7.26381.103" />
       <PackageReference Include="Tomlyn" Version="2.10.1" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <Folder Include="Data\Mai\Dtos\WahlapConnectiveKits\" />
     </ItemGroup>
 
 </Project>

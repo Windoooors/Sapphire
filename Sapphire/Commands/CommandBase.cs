@@ -55,6 +55,18 @@ public abstract class CommandBase
         }
     }
 
+    protected virtual async Task ProcessDirectly(CqMessagePostContext context) {}
+
+    public async Task ReceiveDirectly(CqMessagePostContext context)
+    {
+        await ProcessDirectly(context);
+
+        foreach (var commandBase in SubCommands)
+        {
+            await commandBase.ProcessDirectly(context);
+        }
+    }
+
     public async Task Receive(CommandContext commandContext, CqMessagePostContext context)
     {
         if (commandContext.Flags.Count == 0 && commandContext.Argument is null)
@@ -76,6 +88,16 @@ public abstract class CommandBase
         await SendMessage(context, ["dame"]);
     }
 
+    protected async Task SendUnknownError(CqMessagePostContext context)
+    {
+        await SendMessage(context, ["出现了未知的错误"]);
+    }
+    
+    protected async Task SendArgumentError(CqMessagePostContext context)
+    {
+        await SendMessage(context, ["参数错误"]);
+    }
+
     protected async Task SendMessage(long id, CqMessage message, bool isGroup = true)
     {
         var session = Program.BotSessionHandler?.Session;
@@ -89,22 +111,26 @@ public abstract class CommandBase
             await session.SendPrivateMessageAsync(id, message);
     }
 
-    protected async Task SendMessage(CqMessagePostContext context, CqMessage message, bool reply = true)
+    protected async Task<long?> SendMessage(CqMessagePostContext context, CqMessage message, bool reply = true)
     {
         var session = Program.BotSessionHandler?.Session;
 
         if (session == null)
-            return;
+            return null;
         
         if (context is CqPrivateMessagePostContext privateMessageContext)
         {
             var finalMessage = reply ? [new CqReplyMsg(privateMessageContext.MessageId), .. message] : message;
-            await session.SendPrivateMessageAsync(privateMessageContext.UserId, finalMessage);
+            var result = await session.SendPrivateMessageAsync(privateMessageContext.UserId, finalMessage);
+            return result?.MessageId;
         }
         if (context is CqGroupMessagePostContext groupMessageContext)
         {
             var finalMessage = reply ? [new CqReplyMsg(groupMessageContext.MessageId), .. message] : message;
-            await session.SendGroupMessageAsync(groupMessageContext.GroupId, finalMessage);
+            var result = await session.SendGroupMessageAsync(groupMessageContext.GroupId, finalMessage);
+            return result?.MessageId;
         }
+
+        return null;
     }
 }

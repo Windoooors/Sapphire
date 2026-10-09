@@ -5,6 +5,7 @@ using Sapphire.Commands.Settings;
 using Sapphire.Data.Settings;
 using Sapphire.Environments;
 using Sapphire.Utils;
+using Serilog;
 
 namespace Sapphire;
 
@@ -16,17 +17,23 @@ public static class Program
     
     private static SettingsDataManager? _settingsDataManager = new ();
 
-    private static readonly CommandBase[] GroupCommands = [new PingCommand(), new MaiCommand(), new SettingsCommand()];
+    private static readonly CommandBase[] GroupCommands = [new PingCommand(), new MaiCommand(), new SettingsCommand(), new ConfirmationCommand(), new NRConvertCommand()];
 
     private static readonly string[] CommandPrefixes = ["s"];
     
     private static CommandParser? _commandParser;
+    
+    public static HttpClient HttpClient = new ();
 
     public static async Task Main()
     {
         var keepAlive = new ManualResetEvent(false);
 
         AppDomain.CurrentDomain.ProcessExit += (_, _) => keepAlive.Set();
+        
+        LoggerInitializer.Initialize();
+        
+        Log.Information("Sapphire is initializing commands...");
         
         _environmentHandler = new SpEnvironmentHandler();
         
@@ -38,6 +45,8 @@ public static class Program
         {
             groupCommandBase.StartInitialize();
         }
+        
+        Log.Information("Commands initialized.");
 
         await BotSessionHandler.RunSession(_sessionCancellationToken,
             StartParsing);
