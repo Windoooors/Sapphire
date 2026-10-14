@@ -1,9 +1,7 @@
-using System.Text;
-using EleCho.GoCqHttpSdk.Post;
 using Sapphire.Commands.MaiCommands;
+using Sapphire.Data.DivingFishMai;
 using Sapphire.Data.Mai;
-using Sapphire.Data.Mai.DivingFishDataManagement;
-using Sapphire.Data.Mai.Dtos;
+using Sapphire.ImageGeneration.ImageGenerators;
 
 namespace Sapphire.Commands;
 
@@ -13,12 +11,17 @@ public class MaiCommand : MaiCommandBase
     {
         CommandHeads = ["mai", "m", "maimai"];
         DirectCommandHeads = [];
-        SubCommands = [new SearchCommand(), new AliasCommand(), new BindCommand(), new UpdateScoreCommand(), new InfoCommand()];
+        SubCommands =
+        [
+            new SearchCommand(), new AliasCommand(), new BindCommand(), new UpdateScoreCommand(), new InfoCommand(),
+            new BestListCommand(), new WckSessionLoginCommand(), new WckSessionLogoutCommand()
+        ];
     }
 
     public override void Initialize()
     {
         DataManager = new MaiDataManager();
         DivingFishMaiDataManager = new DivingFishMaiDataManager();
+        MaiImageGeneratorFunctions.LoadImages();
     }
 }

@@ -11,18 +11,20 @@ public class InfoCommand : MaiCommandBase
     {
         DirectCommandHeads = ["info"];
         CommandHeads = ["info"];
-        
+
         ActivationSettingsIdentifier = "mai_info.enabled";
     }
 
     protected override async Task ProcessWithArguments(CommandContext commandContext, CqMessagePostContext context)
     {
+        var startTime = DateTime.UtcNow;
+
         if (MaiDataManager.Instance == null)
         {
             await SendUnknownError(context);
             return;
         }
-        
+
         if (commandContext.Argument == null)
         {
             await SendArgumentError(context);
@@ -40,7 +42,7 @@ public class InfoCommand : MaiCommandBase
             await SendMessage(context, [BuildSongListString(songs, $"info SID{songs[0].SapphireId}", "查询列表中第一首乐曲的信息")]);
             return;
         }
-        
+
         var song = songs[0];
 
         var sb = new StringBuilder();
@@ -49,7 +51,7 @@ public class InfoCommand : MaiCommandBase
         sb.AppendLine($"BPM: {song.SongBpm.ToString() ?? "未知"}");
 
         var userRecordBytes = await MaiDataManager.Instance.GetUserPlayRecordsInBytesAsync(context.UserId);
-        
+
         if (userRecordBytes != null)
         {
             var userRecords = MaiDataManager.Instance.DecodeUserPlayRecords(userRecordBytes);
@@ -59,15 +61,14 @@ public class InfoCommand : MaiCommandBase
             {
                 var index = i + (song.SapphireId - 1) * 5;
 
-                if (userRecords.Length <= index || userRecords[index].ClearState == ClearState.NotPlayed)
-                {
-                    continue;
-                }
+                if (userRecords.Length <= index || userRecords[index].ClearState == ClearState.NotPlayed) continue;
 
                 sb.AppendLine($"难度 {i}. {song.Charts[i].CnLevel}: {userRecords[index].Score}");
             }
         }
-        
+
+        sb.AppendLine($"查询用时：{(DateTime.UtcNow - startTime).Milliseconds}ms");
+
         await SendMessage(context, [sb.ToString().Trim()]);
     }
 }

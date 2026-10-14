@@ -6,10 +6,6 @@ namespace Sapphire.Data.Chuni;
 
 public class ChuniDataManager
 {
-    public static ChuniDataManager? Instance { get; private set; }
-    
-    public ChuniSongDto[] Songs { get; init; }
-    
     public ChuniDataManager()
     {
         using var context = new ChuniMetadataContext();
@@ -17,7 +13,11 @@ public class ChuniDataManager
         context.Database.Migrate();
 
         Songs = context.ChuniSongs.ToArray();
-        
+
         Instance = this;
     }
+
+    public static ChuniDataManager? Instance { get; private set; }
+
+    public ChuniSongDto[] Songs { get; init; }
 }

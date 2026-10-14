@@ -8,30 +8,32 @@ namespace Sapphire.Data.Settings;
 
 public class SettingsDataManager
 {
-    public static SettingsDataManager? Instance { get; private set; }
-    
     private readonly Dictionary<(bool, long, string?), bool> _settingValues;
-    
+
     public SettingsDataManager()
     {
         using var context = new SettingsMetadataContext();
 
         context.Database.Migrate();
-        
-        _settingValues = context.SettingsItems.AsNoTracking().ToDictionary(x => (x.IsGroup, x.ChatId, x.Identifier), x => x.Value);
-        
+
+        _settingValues = context.SettingsItems.AsNoTracking()
+            .ToDictionary(x => (x.IsGroup, x.ChatId, x.Identifier), x => x.Value);
+
         Instance = this;
     }
+
+    public static SettingsDataManager? Instance { get; private set; }
 
     public bool GetValue(CqMessagePostContext postContext, string identifier)
     {
         var defaultValue = SettingsItems.DefaultValues.GetValueOrDefault(identifier, true);
         var value = defaultValue;
-        
+
         if (postContext is CqGroupMessagePostContext groupMessagePostContext)
             value = _settingValues.GetValueOrDefault((true, groupMessagePostContext.GroupId, identifier), defaultValue);
         if (postContext is CqPrivateMessagePostContext privateMessagePostContext)
-            value = _settingValues.GetValueOrDefault((false, privateMessagePostContext.Sender.UserId, identifier), defaultValue);
+            value = _settingValues.GetValueOrDefault((false, privateMessagePostContext.Sender.UserId, identifier),
+                defaultValue);
 
         return value;
     }
@@ -44,8 +46,9 @@ public class SettingsDataManager
             if (_settingValues.ContainsKey((true, groupMessagePostContext.GroupId, identifier)))
             {
                 _settingValues[(true, groupMessagePostContext.GroupId, identifier)] = value;
-                
-                var settingsItem = await context.SettingsItems.FindAsync(true, groupMessagePostContext.GroupId, identifier);
+
+                var settingsItem =
+                    await context.SettingsItems.FindAsync(true, groupMessagePostContext.GroupId, identifier);
                 if (settingsItem != null)
                     settingsItem.Value = value;
                 else
@@ -67,14 +70,15 @@ public class SettingsDataManager
                 });
             }
         }
-        
+
         if (postContext is CqPrivateMessagePostContext privateMessagePostContext)
         {
             if (_settingValues.ContainsKey((false, privateMessagePostContext.Sender.UserId, identifier)))
             {
                 _settingValues[(false, privateMessagePostContext.Sender.UserId, identifier)] = value;
-                
-                var settingsItem = await context.SettingsItems.FindAsync(false, privateMessagePostContext.Sender.UserId, identifier);
+
+                var settingsItem =
+                    await context.SettingsItems.FindAsync(false, privateMessagePostContext.Sender.UserId, identifier);
                 if (settingsItem != null)
                     settingsItem.Value = value;
                 else
@@ -96,7 +100,7 @@ public class SettingsDataManager
                 });
             }
         }
-        
+
         await context.SaveChangesAsync();
     }
 }

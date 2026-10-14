@@ -42,29 +42,24 @@ public abstract class CommandBase
 
     public virtual void Initialize()
     {
-        
     }
 
     public void StartInitialize()
     {
         Initialize();
-        
-        foreach (var groupCommandBase in SubCommands)
-        {
-            groupCommandBase.StartInitialize();
-        }
+
+        foreach (var groupCommandBase in SubCommands) groupCommandBase.StartInitialize();
     }
 
-    protected virtual async Task ProcessDirectly(CqMessagePostContext context) {}
+    protected virtual async Task ProcessDirectly(CqMessagePostContext context)
+    {
+    }
 
     public async Task ReceiveDirectly(CqMessagePostContext context)
     {
         await ProcessDirectly(context);
 
-        foreach (var commandBase in SubCommands)
-        {
-            await commandBase.ProcessDirectly(context);
-        }
+        foreach (var commandBase in SubCommands) await commandBase.ProcessDirectly(context);
     }
 
     public async Task Receive(CommandContext commandContext, CqMessagePostContext context)
@@ -88,17 +83,17 @@ public abstract class CommandBase
         await SendMessage(context, ["dame"]);
     }
 
-    protected async Task SendUnknownError(CqMessagePostContext context)
+    protected static async Task SendUnknownError(CqMessagePostContext context)
     {
         await SendMessage(context, ["出现了未知的错误"]);
     }
-    
-    protected async Task SendArgumentError(CqMessagePostContext context)
+
+    protected static async Task SendArgumentError(CqMessagePostContext context)
     {
         await SendMessage(context, ["参数错误"]);
     }
 
-    protected async Task SendMessage(long id, CqMessage message, bool isGroup = true)
+    protected static async Task SendMessage(long id, CqMessage message, bool isGroup = true)
     {
         var session = Program.BotSessionHandler?.Session;
 
@@ -111,19 +106,20 @@ public abstract class CommandBase
             await session.SendPrivateMessageAsync(id, message);
     }
 
-    protected async Task<long?> SendMessage(CqMessagePostContext context, CqMessage message, bool reply = true)
+    protected static async Task<long?> SendMessage(CqMessagePostContext context, CqMessage message, bool reply = true)
     {
         var session = Program.BotSessionHandler?.Session;
 
         if (session == null)
             return null;
-        
+
         if (context is CqPrivateMessagePostContext privateMessageContext)
         {
             var finalMessage = reply ? [new CqReplyMsg(privateMessageContext.MessageId), .. message] : message;
             var result = await session.SendPrivateMessageAsync(privateMessageContext.UserId, finalMessage);
             return result?.MessageId;
         }
+
         if (context is CqGroupMessagePostContext groupMessageContext)
         {
             var finalMessage = reply ? [new CqReplyMsg(groupMessageContext.MessageId), .. message] : message;
@@ -132,5 +128,15 @@ public abstract class CommandBase
         }
 
         return null;
+    }
+
+    protected async Task<string> GetUserName(long userId)
+    {
+        if (Program.BotSessionHandler.Session == null)
+            return "滚木";
+
+        var userInformation = await Program.BotSessionHandler.Session.GetStrangerInformationAsync(userId);
+
+        return userInformation?.Nickname ?? "未知";
     }
 }

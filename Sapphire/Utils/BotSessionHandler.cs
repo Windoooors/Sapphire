@@ -11,13 +11,13 @@ public class BotSessionHandler
     private static bool _heartBeating;
 
     private readonly NapCatEnvironment _napCatEnvironment =
-        SpEnvironmentHandler.Instance?.Environment.NapCat ?? new NapCatEnvironment();
+        SpEnvironmentHandler.Environment.NapCat;
 
     public CqWsSession? Session;
 
     private static CqWsSession GetSession()
     {
-        var napCatEnvironment = SpEnvironmentHandler.Instance?.Environment.NapCat ?? new NapCatEnvironment();
+        var napCatEnvironment = SpEnvironmentHandler.Environment.NapCat;
 
         return new CqWsSession(new CqWsSessionOptions
         {
@@ -42,7 +42,7 @@ public class BotSessionHandler
             if (Session == null || !Session.IsConnected || !_heartBeating)
             {
                 Log.Information("Sapphire is trying to connect with NapCat...");
-                
+
                 if (Session != null)
                     await Session.StopAsync();
 
@@ -62,7 +62,7 @@ public class BotSessionHandler
                     if (!_heartBeating)
                     {
                         onSessionConnected?.Invoke(Session);
-                        
+
                         Log.Information("Sapphire is connected with NapCat.");
                     }
 

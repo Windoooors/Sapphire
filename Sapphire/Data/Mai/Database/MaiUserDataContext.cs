@@ -7,9 +7,10 @@ namespace Sapphire.Data.Mai.Database;
 public class MaiUserDataContext : DbContext
 {
     public DbSet<MaiUserPlayRecordDto> MaiUserPlayRecords { get; init; }
+
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
-        optionsBuilder.UseNpgsql(SpEnvironmentHandler.Instance?.Environment.Database.SqlConnectionString);
+        optionsBuilder.UseNpgsql(SpEnvironmentHandler.Environment.Database.SqlConnectionString);
     }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)

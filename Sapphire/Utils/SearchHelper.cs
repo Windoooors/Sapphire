@@ -8,11 +8,11 @@ public static class SearchHelper
 {
     private static readonly Opencc Jp2T = new(OpenccConfig.Jp2T);
     private static readonly Opencc T2S = new(OpenccConfig.T2S);
-    
+
     public static string NormalizeCjkString(string value)
     {
         var builder = new StringBuilder(value.Length);
-        
+
         value = Jp2T.Convert(value);
         value = T2S.Convert(value);
 
@@ -21,17 +21,14 @@ public static class SearchHelper
             if (char.IsWhiteSpace(c))
                 continue;
 
-            if (IsIgnoredCharacter(c))
-            {
-                continue;
-            }
+            if (IsIgnoredCharacter(c)) continue;
 
             builder.Append(c);
         }
 
         return builder.ToString();
-        
-         static bool IsIgnoredCharacter(char c)
+
+        static bool IsIgnoredCharacter(char c)
         {
             if (char.IsWhiteSpace(c))
                 return true;

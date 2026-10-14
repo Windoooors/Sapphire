@@ -1,6 +1,7 @@
 using System.Text.Json.Serialization;
+using Sapphire.Data.Mai.Dtos;
 
-namespace Sapphire.Data.Mai.Dtos.DivingFish;
+namespace Sapphire.Data.DivingFishMai.Dtos;
 
 public record DfUserRecordsDto
 {
@@ -18,7 +19,7 @@ public record DfUserRecordDto
 
     public MaiPlayRecord ToMaiPlayRecord()
     {
-        var result = new MaiPlayRecord()
+        var result = new MaiPlayRecord
         {
             ClearState = FcState switch
             {
@@ -41,7 +42,7 @@ public record DfUserRecordDto
             Score = (uint)(Achievement * 10000),
             PlayCount = 0
         };
-        
+
         return result;
     }
 }

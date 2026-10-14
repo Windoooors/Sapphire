@@ -3,14 +3,12 @@ using Tomlyn;
 
 namespace Sapphire.Environments;
 
-public class SpEnvironmentHandler
+public static class SpEnvironmentHandler
 {
     private const string ConfigurationFileName = "config.toml";
 
-    public SpEnvironmentHandler()
+    static SpEnvironmentHandler()
     {
-        Instance = this;
-
         var path = Path.Combine(AppContext.BaseDirectory, ConfigurationFileName);
 
         if (!File.Exists(path) ||
@@ -20,18 +18,20 @@ public class SpEnvironmentHandler
             {
                 NapCat = new NapCatEnvironment(),
                 Database = new DatabaseEnvironment(),
-                DivingFish = new DivingFishEnvironment()
+                DivingFish = new DivingFishEnvironment(),
+                Mai = new MaiEnvironment(),
+                WahlapConnectiveKits = new WahlapConnectiveKitsEnvironment(),
+                ImageGeneration = new ImageGenerationEnvironment(),
+                Sapphire = new SapphireEnvironment()
             };
-            
+
             File.WriteAllText(path, TomlSerializer.Serialize(Environment));
-            
+
             return;
         }
 
         Environment = environment;
     }
 
-    public SpEnvironment Environment { get; init; }
-
-    public static SpEnvironmentHandler? Instance { get; private set; }
+    public static SpEnvironment Environment { get; }
 }

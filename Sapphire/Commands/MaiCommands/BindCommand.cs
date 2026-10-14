@@ -1,6 +1,5 @@
 using EleCho.GoCqHttpSdk.Post;
-using Sapphire.Data.Mai;
-using Sapphire.Data.Mai.DivingFishDataManagement;
+using Sapphire.Data.DivingFishMai;
 
 namespace Sapphire.Commands.MaiCommands;
 
@@ -9,18 +8,18 @@ public class BindCommand : MaiCommandBase
     public BindCommand()
     {
         CommandHeads = ["bind"];
-        SupportedFlags = new List<FlagSpec>()
+        SupportedFlags = new List<FlagSpec>
         {
-            new FlagSpec()
+            new()
             {
                 LongName = "--divingfish",
-                ShortName = "-df",
+                ShortName = "-df"
             }
         };
-        
+
         ActivationSettingsIdentifier = "mai_bind.enabled";
     }
-    
+
     protected override async Task ProcessWithArguments(CommandContext commandContext, CqMessagePostContext context)
     {
         if (commandContext.HasFlag("--divingfish"))
@@ -30,7 +29,7 @@ public class BindCommand : MaiCommandBase
                 await SendUnknownError(context);
                 return;
             }
-            
+
             var urlResult = await DivingFishMaiDataManager.Instance.GetBindUserUrlAsync(context.UserId);
 
             if (urlResult == null)
@@ -40,10 +39,12 @@ public class BindCommand : MaiCommandBase
             }
 
             await SendMessage(context,
-                [$"请在 {TimeSpan.FromSeconds(urlResult.ExpirationPeriod).TotalMinutes :0} 分钟内访问 {urlResult.CompleteUrl} 来完成绑定"]);
+            [
+                $"请在 {TimeSpan.FromSeconds(urlResult.ExpirationPeriod).TotalMinutes:0} 分钟内访问 {urlResult.CompleteUrl} 来完成绑定"
+            ]);
             return;
         }
-        
+
         await SendArgumentError(context);
     }
 }

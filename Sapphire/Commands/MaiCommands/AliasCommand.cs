@@ -27,7 +27,7 @@ public class AliasCommand : MaiCommandBase
                 TakesValue = true
             }
         ];
-        
+
         ActivationSettingsIdentifier = "mai_alias.enabled";
     }
 
@@ -47,7 +47,7 @@ public class AliasCommand : MaiCommandBase
             await SendUnknownError(context);
             return;
         }
-        
+
         if (songs.Length == 0)
         {
             await SendMessage(context, ["未找到匹配的乐曲"]);
@@ -104,7 +104,7 @@ public class AliasCommand : MaiCommandBase
             await SendMessage(context, ["未找到指定的别名"]);
             return;
         }
-        
+
         await ConfirmationCommand.Instance.AddConfirmation(async () =>
             {
                 switch (await MaiDataManager.Instance.TryRemoveAlias((int)aliasId, context.UserId))
@@ -122,7 +122,8 @@ public class AliasCommand : MaiCommandBase
 
     private async Task QueryAliases(CommandContext commandContext, CqMessagePostContext context)
     {
-        if (MaiDataManager.Instance == null || !TryGetSongsByString(commandContext.Argument ?? "", out var songs) || songs == null)
+        if (MaiDataManager.Instance == null || !TryGetSongsByString(commandContext.Argument ?? "", out var songs) ||
+            songs == null)
         {
             await SendUnknownError(context);
             return;
@@ -149,22 +150,19 @@ public class AliasCommand : MaiCommandBase
     private static string BuildAliasListString(MaiSongDto songDto, IEnumerable<MaiAliasDto> aliases)
     {
         var aliasesArray = aliases.ToArray();
-        
+
         var stringBuilder = new StringBuilder($"歌曲 {NormalizeSongNameString(songDto)}");
-        
+
         if (aliasesArray.Length == 0)
         {
             stringBuilder.Append(" 没有别名");
             return stringBuilder.ToString().Trim();
         }
-        
+
         stringBuilder.AppendLine(" 有如下别名：");
-        
-        foreach (var alias in aliasesArray)
-        {
-            stringBuilder.AppendLine($"AID{alias.AliasId}. {alias.Alias}");
-        }
-        
+
+        foreach (var alias in aliasesArray) stringBuilder.AppendLine($"AID{alias.AliasId}. {alias.Alias}");
+
         return stringBuilder.ToString().Trim();
     }
 
@@ -175,13 +173,13 @@ public class AliasCommand : MaiCommandBase
             await AddAlias(commandContext, context);
             return;
         }
-        
+
         if (commandContext.HasFlag("--remove"))
         {
             await RemoveAlias(commandContext, context);
             return;
         }
-        
+
         await QueryAliases(commandContext, context);
     }
 }

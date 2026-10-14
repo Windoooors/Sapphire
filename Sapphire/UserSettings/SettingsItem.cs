@@ -4,39 +4,39 @@ public static class SettingsItems
 {
     public static readonly SettingsCategory[] Categories =
     [
-        new SettingsCategory()
+        new()
         {
             Name = "舞萌歌曲搜索",
             Items =
             [
-                new SettingsItem()
+                new SettingsItem
                 {
                     DisplayName = "启用",
-                    Identifier = "mai_search.enabled",
+                    Identifier = "mai_search.enabled"
                 }
             ]
         },
-        new SettingsCategory()
+        new()
         {
             Name = "Ping",
             Items =
             [
-                new SettingsItem()
+                new SettingsItem
                 {
                     DisplayName = "启用",
-                    Identifier = "ping.enabled",
+                    Identifier = "ping.enabled"
                 }
             ]
         },
-        new SettingsCategory()
+        new()
         {
             Name = "杂项",
             Items =
             [
-                new SettingsItem()
+                new SettingsItem
                 {
                     DisplayName = "简介指令",
-                    Identifier = "lite_commands.enabled",
+                    Identifier = "lite_commands.enabled"
                 }
             ]
         }

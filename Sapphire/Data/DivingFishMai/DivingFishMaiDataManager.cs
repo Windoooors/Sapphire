@@ -1,31 +1,23 @@
 using System.Net;
-using System.Net.Http.Headers;
-using System.Security.Cryptography;
-using System.Text;
 using System.Text.Json;
-using System.Text.Json.Serialization;
-using Sapphire.Data.Mai.Dtos.DivingFish;
-using Sapphire.Environments;
-using Sapphire.Environments.SubEnvironments;
-using Sapphire.Utils;
+using Sapphire.Data.DivingFishMai.Dtos;
 using Serilog;
-using Serilog.Core;
 
-namespace Sapphire.Data.Mai.DivingFishDataManagement;
+namespace Sapphire.Data.DivingFishMai;
 
 public class DivingFishMaiDataManager
 {
-    public static DivingFishMaiDataManager? Instance { get; private set; }
-
     public DivingFishMaiDataManager()
     {
         Instance = this;
     }
 
+    public static DivingFishMaiDataManager? Instance { get; private set; }
+
     public async Task<BindingUrlResponseDto?> GetBindUserUrlAsync(long userId)
     {
         var env = ApiOperator.GetEnvironment();
-        
+
         var userReference = ApiOperator.GetUserRefString(userId);
 
         var requestBody = new Dictionary<string, string>
@@ -36,16 +28,13 @@ public class DivingFishMaiDataManager
             ["subject_ref"] = userReference,
             ["binding_label"] = "test"
         };
-        
+
         using var requestContent = new FormUrlEncodedContent(requestBody);
-        
+
         var result = await Program.HttpClient.PostAsync($"{env.DivingFishAuthUrl}/oauth/device_authorization",
             requestContent);
 
-        if (result.StatusCode != HttpStatusCode.OK)
-        {
-            return null;
-        }
+        if (result.StatusCode != HttpStatusCode.OK) return null;
 
         var content = await result.Content.ReadAsStringAsync();
 
@@ -57,7 +46,7 @@ public class DivingFishMaiDataManager
         catch (Exception e)
         {
             Log.Error(e, "Error occured while deserializing DivingFish binding response content");
-            
+
             return null;
         }
     }
@@ -67,13 +56,10 @@ public class DivingFishMaiDataManager
         var env = ApiOperator.GetEnvironment();
 
         var url = $"{env.DivingFishUrl}/api/maimaidxprober/player/records";
-        
+
         var response = await ApiOperator.GetWithCredentials(url, userId);
 
-        if (response.statusCode != HttpStatusCode.OK  || response.result == null)
-        {
-            return null;
-        }
+        if (response.statusCode != HttpStatusCode.OK || response.result == null) return null;
         try
         {
             var result = JsonSerializer.Deserialize<DfUserRecordsDto>(response.result);

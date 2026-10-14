@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
 
-namespace Sapphire.Data.Mai.Dtos.DivingFish;
+namespace Sapphire.Data.DivingFishMai.Dtos;
 
 public record AccessTokenDto
 {

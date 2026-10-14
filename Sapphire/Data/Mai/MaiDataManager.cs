@@ -9,22 +9,6 @@ namespace Sapphire.Data.Mai;
 
 public class MaiDataManager
 {
-    public static MaiDataManager? Instance { get; private set; }
-    
-    public MaiSongDto[] Songs { get; private set; }
-    public MaiAliasDto[] Aliases { get; private set; }
-
-    public Dictionary<MaiSongDto, string> SongNameSearchKeys { get; } = [];
-    public Dictionary<MaiSongDto, string> ArtistSearchKeys { get; } = [];
-    public Dictionary<MaiSongDto, string[]> AliasSearchKeys { get; } = [];
-    
-    public Dictionary<string, MaiSongDto[]> SongNameToSongs { get; } = [];
-    public Dictionary<int, MaiSongDto> SapphireIdToSong { get; } = [];
-    public Dictionary<int, MaiSongDto> IdToSong { get; } = [];
-    public Dictionary<string, MaiSongDto[]> AliasToSongs { get; } = [];
-    public Dictionary<MaiSongDto, MaiAliasDto[]> SongToAliases { get; } = [];
-    public Dictionary<int, MaiAliasDto> AliasIdToAlias { get; } = [];
-
     public MaiDataManager()
     {
         using var context = new MaiMetadataContext();
@@ -40,6 +24,22 @@ public class MaiDataManager
         userContext.Database.Migrate();
     }
 
+    public static MaiDataManager? Instance { get; private set; }
+
+    public MaiSongDto[] Songs { get; private set; }
+    public MaiAliasDto[] Aliases { get; private set; }
+
+    public Dictionary<MaiSongDto, string> SongNameSearchKeys { get; } = [];
+    public Dictionary<MaiSongDto, string> ArtistSearchKeys { get; } = [];
+    public Dictionary<MaiSongDto, string[]> AliasSearchKeys { get; } = [];
+
+    public Dictionary<string, MaiSongDto[]> SongNameToSongs { get; } = [];
+    public Dictionary<int, MaiSongDto> SapphireIdToSong { get; } = [];
+    public Dictionary<int, MaiSongDto> IdToSong { get; } = [];
+    public Dictionary<string, MaiSongDto[]> AliasToSongs { get; } = [];
+    public Dictionary<MaiSongDto, MaiAliasDto[]> SongToAliases { get; } = [];
+    public Dictionary<int, MaiAliasDto> AliasIdToAlias { get; } = [];
+
     public async Task<bool> InsertUserPlayRecords(MaiPlayRecord[] records, long userId)
     {
         await using var context = new MaiUserDataContext();
@@ -53,9 +53,9 @@ public class MaiDataManager
             };
             await context.MaiUserPlayRecords.AddAsync(findResult);
         }
-        
+
         findResult.Data = MaiPlayRecordBlobHelper.ToBlob(records);
-        
+
         await context.SaveChangesAsync();
         return true;
     }
@@ -64,7 +64,7 @@ public class MaiDataManager
     {
         await using var context = new MaiUserDataContext();
         var findResult = await context.MaiUserPlayRecords.AsNoTracking().FirstOrDefaultAsync(x => x.UserId == userId);
-        
+
         return findResult?.Data;
     }
 
@@ -76,7 +76,7 @@ public class MaiDataManager
     private void BakeIndexingData()
     {
         Instance = null;
-        
+
         SongNameSearchKeys.Clear();
         ArtistSearchKeys.Clear();
         AliasSearchKeys.Clear();
@@ -86,7 +86,7 @@ public class MaiDataManager
         AliasToSongs.Clear();
         SongToAliases.Clear();
         AliasIdToAlias.Clear();
-        
+
         foreach (var maiSongDto in Songs)
         {
             if (maiSongDto.SongName == null)
@@ -98,7 +98,7 @@ public class MaiDataManager
             SapphireIdToSong.TryAdd(maiSongDto.SapphireId, maiSongDto);
             if (maiSongDto.SongId != null)
                 IdToSong.TryAdd(maiSongDto.SongId ?? 0, maiSongDto);
-            
+
             SongToAliases.TryAdd(maiSongDto, [.. Aliases.Where(x => x.Song.Equals(maiSongDto))]);
         }
 
@@ -111,7 +111,7 @@ public class MaiDataManager
 
             AliasIdToAlias.TryAdd(alias.AliasId, alias);
         }
-        
+
         foreach (var maiSongDto in Songs)
         {
             SongNameSearchKeys.TryAdd(maiSongDto, SearchHelper.NormalizeCjkString(maiSongDto.SongName ?? ""));
@@ -122,7 +122,7 @@ public class MaiDataManager
                     x.Alias))
             ]);
         }
-        
+
         Instance = this;
     }
 
@@ -134,17 +134,17 @@ public class MaiDataManager
 
         if (alias == null)
             return false;
-        
+
         if (!forced && (alias.CreatorUserId == null || alias.CreatorUserId != creatorUserId))
             return false;
 
         context.MaiAliases.Remove(alias);
-        
+
         await context.SaveChangesAsync();
-        
+
         Songs = await context.MaiSongs.ToArrayAsync();
         Aliases = await context.MaiAliases.ToArrayAsync();
-        
+
         BakeIndexingData();
 
         return true;
@@ -154,47 +154,99 @@ public class MaiDataManager
     {
         if (Aliases.AsQueryable().Any(x => x.Alias.ToLower() == alias.ToLower() && x.Song.Equals(maiSongDto)))
             return false;
-        
+
         await using var context = new MaiMetadataContext();
 
         var song = await context.MaiSongs.FirstOrDefaultAsync(x => x.SapphireId == maiSongDto.SapphireId);
 
         if (song == null)
             return false;
-        
+
         await context.MaiAliases.AddAsync(new MaiAliasDto
         {
             Alias = alias,
             CreatorUserId = creatorUserId,
             Song = song
         });
-        
+
         await context.SaveChangesAsync();
-        
+
         Songs = await context.MaiSongs.ToArrayAsync();
         Aliases = await context.MaiAliases.ToArrayAsync();
-        
+
         BakeIndexingData();
 
         return true;
     }
-    
+
+    public static int GetRating(int chartRating, uint achievement)
+    {
+        return (int)(chartRating * GetRatingFactor(achievement) * (achievement > 1005000 ? 1005000 : achievement) /
+                     100000000f);
+    }
+
+    public static int GetRating(int sapphireId, int levelIndex, uint achievement, bool useJpLevel = false)
+    {
+        if (Instance == null || !Instance.SapphireIdToSong.TryGetValue(sapphireId, out var song))
+            return 0;
+
+        if (levelIndex > song.Charts.Count - 1)
+            return 0;
+
+        var level = (useJpLevel ? song.Charts[levelIndex].JpLevel : song.Charts[levelIndex].CnLevel) ?? 0;
+
+        return (int)(level * GetRatingFactor(achievement) * (achievement > 1005000 ? 1005000 : achievement) /
+                     100000000f);
+    }
+
+    private static float GetRatingFactor(uint achievement)
+    {
+        return achievement switch
+        {
+            799999 => 12.8f,
+            969999 => 17.6f,
+            989999 => 20.6f,
+            999999 => 21.4f,
+            1004999 => 22.2f,
+
+            >= 100000 and < 200000 => 1.6f,
+            >= 200000 and < 300000 => 3.2f,
+            >= 300000 and < 400000 => 4.8f,
+            >= 400000 and < 500000 => 6.4f,
+            >= 500000 and < 600000 => 8f,
+            >= 600000 and < 700000 => 9.6f,
+            >= 700000 and < 750000 => 11.2f,
+            >= 750000 and < 800000 => 12f,
+            >= 800000 and < 900000 => 13.6f,
+            >= 900000 and < 940000 => 15.2f,
+            >= 940000 and < 970000 => 16.8f,
+            >= 970000 and < 980000 => 20f,
+            >= 980000 and < 990000 => 20.3f,
+            >= 990000 and < 995000 => 20.8f,
+            >= 995000 and < 1000000 => 21.1f,
+            >= 1000000 and < 1005000 => 21.6f,
+            >= 1005000 => 22.4f,
+
+            _ => 0f
+        };
+    }
+
     private static class MaiPlayRecordBlobHelper
     {
         public const int Stride = 10;
 
         static MaiPlayRecordBlobHelper()
         {
-            int size = Unsafe.SizeOf<MaiPlayRecord>();
+            var size = Unsafe.SizeOf<MaiPlayRecord>();
             if (size != Stride)
-                throw new InvalidOperationException($"MaiPlayRecord 必须是 {Stride} 字节（当前 {size}）");
+                throw new InvalidOperationException($"MaiPlayRecord must be {Stride} bytes (currently {size} bytes)");
             if (!BitConverter.IsLittleEndian)
-                throw new PlatformNotSupportedException("blob 布局约定为小端");
+                throw new PlatformNotSupportedException("Big endian is not supported");
         }
 
         public static byte[] ToBlob(ReadOnlySpan<MaiPlayRecord> records)
         {
-            int last = records.Length - 1;
+            var last = records.Length - 1;
             while (last >= 0 && records[last].ClearState == ClearState.NotPlayed) last--;
             if (last < 0) return [];
 

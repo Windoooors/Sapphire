@@ -12,13 +12,13 @@ public class PingCommand : CommandBase
 
         SupportedFlags =
         [
-            new FlagSpec()
+            new FlagSpec
             {
                 ShortName = "-t",
                 LongName = "--test",
                 TakesValue = true
             },
-            new FlagSpec()
+            new FlagSpec
             {
                 ShortName = "-t2",
                 LongName = "--test2",
@@ -44,23 +44,18 @@ public class PingCommand : CommandBase
                 return;
             }
         }
-        
+
         if (commandContext.HasFlag("--test2"))
         {
             if (ConfirmationCommand.Instance == null)
                 return;
-            
-            await ConfirmationCommand.Instance.AddConfirmation(async () =>
-            {
-                await SendMessage(context, ["确定了"]);
-            }, async () =>
-            {
-                await SendMessage(context, ["取消了"]);
-            }, "ping" , context, context.UserId);
+
+            await ConfirmationCommand.Instance.AddConfirmation(async () => { await SendMessage(context, ["确定了"]); },
+                async () => { await SendMessage(context, ["取消了"]); }, "ping", context, context.UserId);
 
             return;
         }
-        
+
         await SendMessage(context, ["未知参数"]);
     }
 }

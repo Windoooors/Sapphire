@@ -7,6 +7,4 @@ public class SearchCommand : ChuniCommandBase
         CommandHeads = ["search"];
         DirectCommandHeads = ["c搜歌"];
     }
-    
-    
 }

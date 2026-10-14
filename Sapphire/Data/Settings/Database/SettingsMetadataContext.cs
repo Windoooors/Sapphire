@@ -1,18 +1,16 @@
 using Microsoft.EntityFrameworkCore;
-using Sapphire.Data.Mai.Dtos;
 using Sapphire.Data.Settings.Dtos;
 using Sapphire.Environments;
-using Sapphire.UserSettings;
 
 namespace Sapphire.Data.Settings.Database;
 
 public class SettingsMetadataContext : DbContext
 {
     public DbSet<SettingsStorageItemDto> SettingsItems { get; init; }
-    
+
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
-        optionsBuilder.UseNpgsql(SpEnvironmentHandler.Instance?.Environment.Database.SqlConnectionString);
+        optionsBuilder.UseNpgsql(SpEnvironmentHandler.Environment.Database.SqlConnectionString);
     }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)

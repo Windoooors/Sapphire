@@ -5,14 +5,14 @@ namespace Sapphire.Commands;
 
 public class ConfirmationCommand : CommandBase
 {
-    public static ConfirmationCommand? Instance { get; private set; }
-    
-    private Dictionary<long, ConfirmationItem> Items { get; } = new();
-
     public ConfirmationCommand()
     {
         Instance = this;
     }
+
+    public static ConfirmationCommand? Instance { get; private set; }
+
+    private Dictionary<long, ConfirmationItem> Items { get; } = new();
 
     protected override async Task ProcessDirectly(CqMessagePostContext context)
     {
@@ -21,10 +21,7 @@ public class ConfirmationCommand : CommandBase
             return;
 
         var id = replyMessage.Id ?? 0;
-        if (!Items.TryGetValue(id, out var item))
-        {
-            return;
-        }
+        if (!Items.TryGetValue(id, out var item)) return;
 
         if (context.UserId == item.TargetUserId)
         {
@@ -41,7 +38,8 @@ public class ConfirmationCommand : CommandBase
         }
     }
 
-    public async Task AddConfirmation(Func<Task> onAgree, Func<Task> onCancel, string actionName, CqMessagePostContext context, long targetUserId)
+    public async Task AddConfirmation(Func<Task> onAgree, Func<Task> onCancel, string actionName,
+        CqMessagePostContext context, long targetUserId)
     {
         var item = new ConfirmationItem
         {
@@ -51,7 +49,8 @@ public class ConfirmationCommand : CommandBase
             Timestamp = DateTime.UtcNow
         };
 
-        var messageId = await SendMessage(context, [$"您正在尝试{actionName}，请用户 {targetUserId} 对此条消息回复 “确定” 以确定，回复 “取消” 以取消。"]);
+        var messageId = await SendMessage(context,
+            [$"您正在尝试{actionName}，请用户 {targetUserId} 对此条消息回复 “确定” 以确定，回复 “取消” 以取消。"]);
 
         if (messageId == null)
         {
@@ -61,10 +60,7 @@ public class ConfirmationCommand : CommandBase
 
         var itemAdded = Items.TryAdd(messageId ?? 0, item);
 
-        if (!itemAdded)
-        {
-            await SendUnknownError(context);
-        }
+        if (!itemAdded) await SendUnknownError(context);
     }
 
     public class ConfirmationItem
@@ -73,6 +69,6 @@ public class ConfirmationCommand : CommandBase
         public required Func<Task> OnCancel { get; init; }
         public required long TargetUserId { get; init; }
 
-        public DateTime Timestamp { get; init;  }
+        public DateTime Timestamp { get; init; }
     }
 }

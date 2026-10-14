@@ -1,5 +1,4 @@
 using Microsoft.EntityFrameworkCore;
-using Sapphire.Data.Chuni.Dtos;
 using Sapphire.Data.Mai.Dtos;
 using Sapphire.Environments;
 
@@ -12,7 +11,7 @@ public class MaiMetadataContext : DbContext
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
-        optionsBuilder.UseNpgsql(SpEnvironmentHandler.Instance?.Environment.Database.SqlConnectionString);
+        optionsBuilder.UseNpgsql(SpEnvironmentHandler.Environment.Database.SqlConnectionString);
     }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -32,10 +31,10 @@ public class MaiMetadataContext : DbContext
             .HasForeignKey(a => a.SapphireId);
 
         chartEntityBuilder.HasKey(x => x.ChartId);
-        
+
         var aliasEntityBuilder = modelBuilder.Entity<MaiAliasDto>();
         aliasEntityBuilder.HasOne(x => x.Song);
-        
+
         aliasEntityBuilder.HasKey(x => x.AliasId);
     }
 }

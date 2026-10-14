@@ -2,6 +2,7 @@ using System.Text;
 using EleCho.GoCqHttpSdk.Post;
 using Sapphire.Commands;
 using Sapphire.Data.Settings;
+using Serilog;
 
 namespace Sapphire.Utils;
 
@@ -9,14 +10,11 @@ public class CommandParser(IEnumerable<CommandBase> rootCommands, string[] comma
 {
     public async Task ParseAndExecute(CqMessagePostContext context)
     {
-        foreach (var rootCommand in rootCommands)
-        {
-            await rootCommand.ReceiveDirectly(context);
-        }
-        
+        foreach (var rootCommand in rootCommands) await rootCommand.ReceiveDirectly(context);
+
         if (SettingsDataManager.Instance == null)
             return;
-        
+
         var commandLine = context.RawMessage;
 
         if (string.IsNullOrWhiteSpace(commandLine)) return;
@@ -35,24 +33,32 @@ public class CommandParser(IEnumerable<CommandBase> rootCommands, string[] comma
 
         var commandContext = ExtractFlagsAndArguments(rawTokens, matchedCmd);
 
-        await matchedCmd.Receive(commandContext, context);
+        try
+        {
+            await matchedCmd.Receive(commandContext, context);
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Unknown error occured.");
+#if DEBUG
+            throw;
+#endif
+        }
     }
 
     private static CommandContext ExtractFlagsAndArguments(List<string> tokens, CommandBase cmd)
     {
         var context = new CommandContext();
-        
+
         var positionalTokens = new List<string>();
-        
+
         var flagLookup = new Dictionary<string, FlagSpec>(StringComparer.OrdinalIgnoreCase);
         if (cmd.SupportedFlags.Count > 0)
-        {
             foreach (var flag in cmd.SupportedFlags)
             {
                 if (!string.IsNullOrEmpty(flag.ShortName)) flagLookup[flag.ShortName] = flag;
                 if (!string.IsNullOrEmpty(flag.LongName)) flagLookup[flag.LongName] = flag;
             }
-        }
 
         for (var i = 0; i < tokens.Count; i++)
         {
@@ -70,8 +76,8 @@ public class CommandParser(IEnumerable<CommandBase> rootCommands, string[] comma
                         i++;
                     }
 
-                    context.Flags[spec.Name] = valTokens.Count > 0 
-                        ? string.Join(" ", valTokens) 
+                    context.Flags[spec.Name] = valTokens.Count > 0
+                        ? string.Join(" ", valTokens)
                         : string.Empty;
                 }
                 else
@@ -84,9 +90,9 @@ public class CommandParser(IEnumerable<CommandBase> rootCommands, string[] comma
                 positionalTokens.Add(token);
             }
         }
-        
-        context.Argument = positionalTokens.Count > 0 
-            ? string.Join(" ", positionalTokens) 
+
+        context.Argument = positionalTokens.Count > 0
+            ? string.Join(" ", positionalTokens)
             : null;
 
         return context;
@@ -154,7 +160,6 @@ public class CommandParser(IEnumerable<CommandBase> rootCommands, string[] comma
         var inQuotes = false;
 
         foreach (var c in input)
-        {
             if (c == '"')
             {
                 inQuotes = !inQuotes;
@@ -171,7 +176,6 @@ public class CommandParser(IEnumerable<CommandBase> rootCommands, string[] comma
             {
                 currentToken.Append(c);
             }
-        }
 
         tokens.Add(currentToken.ToString());
 

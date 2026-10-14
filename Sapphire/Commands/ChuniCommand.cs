@@ -1,6 +1,5 @@
 using EleCho.GoCqHttpSdk.Post;
 using Sapphire.Data.Chuni;
-using Sapphire.Data.Chuni.Database;
 
 namespace Sapphire.Commands;
 

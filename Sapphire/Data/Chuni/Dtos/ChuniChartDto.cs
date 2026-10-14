@@ -8,7 +8,7 @@ public record ChuniChartDto
 
     public int CnLevel { get; init; } = -1;
     public int JpLevel { get; init; } = -1;
-    
+
     public int NoteCount { get; init; }
     public required string CharterName { get; init; }
     public ChuniSongDto? Song { get; init; }
