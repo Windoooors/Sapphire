@@ -28,6 +28,16 @@ public static class ColorPalette
         ParseHex(SpEnvironmentHandler.Environment.ImageGeneration.BasicColorInHex, Color.Black,
             out var basicColor);
 
+        ParseHex(SpEnvironmentHandler.Environment.ImageGeneration.RemasterFontColorInHex, Color.Black,
+            out var remasterFontColor);
+        ParseHex(SpEnvironmentHandler.Environment.ImageGeneration.MasterFontColorInHex, Color.Black,
+            out var masterFontColor);
+        ParseHex(SpEnvironmentHandler.Environment.ImageGeneration.ExpertFontColorInHex, Color.Black,
+            out var expertFontColor);
+        ParseHex(SpEnvironmentHandler.Environment.ImageGeneration.AdvancedFontColorInHex, Color.Black,
+            out var advancedFontColor);
+        ParseHex(SpEnvironmentHandler.Environment.ImageGeneration.BasicFontColorInHex, Color.Black,
+            out var basicFontColor);
 
         FontCollection collection = new();
         LightFont = collection.Add(Path.Combine(AppContext.BaseDirectory, "Resources", "Fonts", "light.otf"));
@@ -43,11 +53,18 @@ public static class ColorPalette
         MiddleLayerColor = middleLayerColor;
         BackgroundColor = backgroundColor;
         FontColor = fontColor;
+
         RemasterColor = remasterColor;
         MasterColor = masterColor;
         ExpertColor = expertColor;
         AdvancedColor = advancedColor;
         BasicColor = basicColor;
+
+        RemasterFontColor = remasterFontColor;
+        MasterFontColor = masterFontColor;
+        ExpertFontColor = expertFontColor;
+        AdvancedFontColor = advancedFontColor;
+        BasicFontColor = basicFontColor;
     }
 
     public static FontFamily LightFont { get; private set; }
@@ -68,6 +85,12 @@ public static class ColorPalette
     public static Color AdvancedColor { get; private set; }
     public static Color BasicColor { get; private set; }
 
+    public static Color RemasterFontColor { get; private set; }
+    public static Color MasterFontColor { get; private set; }
+    public static Color ExpertFontColor { get; private set; }
+    public static Color AdvancedFontColor { get; private set; }
+    public static Color BasicFontColor { get; private set; }
+
     private static void ParseHex(string hex, Color defaultColor, out Color color)
     {
         if (!Color.TryParseHex(hex,
@@ -75,7 +98,8 @@ public static class ColorPalette
         {
             targetColor = defaultColor;
             Log.Warning(
-                $"Color value \"{SpEnvironmentHandler.Environment.ImageGeneration.BackgroundColorInHex}\" is invalid");
+                "Color value \"{BackgroundColorInHex}\" is invalid",
+                SpEnvironmentHandler.Environment.ImageGeneration.BackgroundColorInHex);
         }
 
         color = targetColor;

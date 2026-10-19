@@ -59,7 +59,7 @@ public class SearchCommand : MaiCommandBase
         if (value?.Length == 0) return _ => true;
 
         var inputKey = SearchHelper.NormalizeCjkString(value ?? "");
-        return x => MaiDataManager.Instance?.SongNameSearchKeys[x].ToLower().Contains(inputKey.ToLower()) ?? false;
+        return x => MaiDataManager.Instance?.SongNameSearchKeys[x].Contains(inputKey.ToLower()) ?? false;
     }
 
     public static Func<MaiSongDto, bool> CreateSongAliasPredicate(string? value)
@@ -67,7 +67,7 @@ public class SearchCommand : MaiCommandBase
         if (value?.Length == 0) return _ => true;
 
         var inputKey = SearchHelper.NormalizeCjkString(value ?? "");
-        return x => MaiDataManager.Instance?.AliasSearchKeys[x].Any(y => y.ToLower().Contains(inputKey.ToLower())) ??
+        return x => MaiDataManager.Instance?.AliasSearchKeys[x].Any(y => y.Contains(inputKey.ToLower())) ??
                     false;
     }
 
@@ -76,7 +76,7 @@ public class SearchCommand : MaiCommandBase
         if (value?.Length == 0) return _ => true;
 
         var inputKey = SearchHelper.NormalizeCjkString(value ?? "");
-        return x => MaiDataManager.Instance?.ArtistSearchKeys[x].ToLower().Contains(inputKey.ToLower()) ?? false;
+        return x => MaiDataManager.Instance?.ArtistSearchKeys[x].Contains(inputKey.ToLower()) ?? false;
     }
 
     private static Func<MaiSongDto, bool> CreateBpmPredicate(string? value)

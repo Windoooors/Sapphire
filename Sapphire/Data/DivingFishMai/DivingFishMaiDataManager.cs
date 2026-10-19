@@ -45,7 +45,7 @@ public class DivingFishMaiDataManager
         }
         catch (Exception e)
         {
-            Log.Error(e, "Error occured while deserializing DivingFish binding response content");
+            Log.Error(e, "Error occurred while deserializing DivingFish binding response content");
 
             return null;
         }
@@ -67,7 +67,7 @@ public class DivingFishMaiDataManager
         }
         catch (Exception e)
         {
-            Log.Error(e, "Error occurred when trying to deserialize user record data from DivingFish.");
+            Log.Error(e, "Error occurred when trying to deserialize user record data from DivingFish");
         }
 
         return null;

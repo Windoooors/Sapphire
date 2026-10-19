@@ -11,44 +11,93 @@ public static class SearchHelper
 
     public static string NormalizeCjkString(string value)
     {
-        var builder = new StringBuilder(value.Length);
+        if (string.IsNullOrEmpty(value))
+            return string.Empty;
 
         value = Jp2T.Convert(value);
         value = T2S.Convert(value);
 
+        var sb = new StringBuilder(value.Length);
+
         foreach (var c in value)
         {
+            var mapped = c switch
+            {
+                '\u00C5' or '\u212B' => 'a',
+                '\u00E5' => 'a',
+                'Ä' or 'ä' => 'a',
+                'Ö' or 'ö' => 'o',
+                'Ø' or 'ø' => 'o',
+                'Æ' or 'æ' => 'a',
+                '+' or '＋' => '+',
+                _ => c
+            };
+
+            sb.Append(MapSimilarCharacter(mapped));
+        }
+
+        var decomposed = sb.ToString()
+            .Normalize(NormalizationForm.FormKD);
+
+        sb.Clear();
+
+        foreach (var c in decomposed)
+        {
+            var category = CharUnicodeInfo.GetUnicodeCategory(c);
+
+            if (category is UnicodeCategory.NonSpacingMark
+                or UnicodeCategory.ConnectorPunctuation
+                or UnicodeCategory.DashPunctuation
+                or UnicodeCategory.OpenPunctuation
+                or UnicodeCategory.ClosePunctuation
+                or UnicodeCategory.InitialQuotePunctuation
+                or UnicodeCategory.FinalQuotePunctuation
+                or UnicodeCategory.OtherPunctuation
+                or UnicodeCategory.MathSymbol
+                or UnicodeCategory.CurrencySymbol
+                or UnicodeCategory.ModifierSymbol
+                or UnicodeCategory.OtherSymbol)
+                continue;
+
             if (char.IsWhiteSpace(c))
                 continue;
 
-            if (IsIgnoredCharacter(c)) continue;
-
-            builder.Append(c);
+            sb.Append(char.ToLowerInvariant(c));
         }
 
-        return builder.ToString();
+        return sb.ToString().Normalize(NormalizationForm.FormC);
 
-        static bool IsIgnoredCharacter(char c)
+        static char MapSimilarCharacter(char c)
         {
-            if (char.IsWhiteSpace(c))
-                return true;
-
-            return CharUnicodeInfo.GetUnicodeCategory(c) switch
+            return c switch
             {
-                UnicodeCategory.ConnectorPunctuation => true,
-                UnicodeCategory.DashPunctuation => true,
-                UnicodeCategory.OpenPunctuation => true,
-                UnicodeCategory.ClosePunctuation => true,
-                UnicodeCategory.InitialQuotePunctuation => true,
-                UnicodeCategory.FinalQuotePunctuation => true,
-                UnicodeCategory.OtherPunctuation => true,
+                'Å' or 'å' or 'Å' => 'a',
+                'Ä' or 'ä' => 'a',
+                'Ö' or 'ö' or 'Ø' or 'ø' => 'o',
+                'Æ' or 'æ' => 'a',
 
-                UnicodeCategory.MathSymbol => true,
-                UnicodeCategory.CurrencySymbol => true,
-                UnicodeCategory.ModifierSymbol => true,
-                UnicodeCategory.OtherSymbol => true,
+                'ε' or 'ϵ' or 'Ε' or 'Ɛ' or 'ɛ' => 'e',
 
-                _ => false
+                'ϲ' or 'Ϲ' => 'c',
+
+                'α' or 'Α' => 'a',
+                'β' or 'Β' => 'b',
+
+                'ι' or 'Ι' or 'ı' or 'İ' => 'i',
+                'κ' or 'Κ' => 'k',
+                'ο' or 'Ο' => 'o',
+                'ρ' or 'Ρ' => 'p',
+                'ς' or 'σ' or 'Σ' => 's',
+                'τ' or 'Τ' => 't',
+                'χ' or 'Χ' => 'x',
+                'υ' or 'Υ' => 'y',
+
+                'γ' or 'Γ' => 'y',
+                'φ' or 'ϕ' or 'Φ' => 'f',
+
+                '＋' => '+',
+
+                _ => char.ToLowerInvariant(c)
             };
         }
     }

@@ -39,7 +39,7 @@ public class CommandParser(IEnumerable<CommandBase> rootCommands, string[] comma
         }
         catch (Exception ex)
         {
-            Log.Error(ex, "Unknown error occured.");
+            Log.Error(ex, "Unknown error occurred");
 #if DEBUG
             throw;
 #endif

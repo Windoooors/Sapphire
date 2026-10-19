@@ -41,7 +41,7 @@ public class BotSessionHandler
 
             if (Session == null || !Session.IsConnected || !_heartBeating)
             {
-                Log.Information("Sapphire is trying to connect with NapCat...");
+                Log.Information("Trying to connect with NapCat");
 
                 if (Session != null)
                     await Session.StopAsync();
@@ -63,7 +63,7 @@ public class BotSessionHandler
                     {
                         onSessionConnected?.Invoke(Session);
 
-                        Log.Information("Sapphire is connected with NapCat.");
+                        Log.Information("Connected with NapCat");
                     }
 
                     _heartBeating = true;

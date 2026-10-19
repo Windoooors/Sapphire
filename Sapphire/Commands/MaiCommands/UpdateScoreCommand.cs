@@ -136,7 +136,7 @@ public class UpdateScoreCommand : MaiCommandBase
             }
 
             await SendUnknownError(context);
-            Log.Error(ex, "Unknown error occurred while updating user records from wahlap.");
+            Log.Error(ex, "Error occurred while updating user records from wahlap");
         }
     }
 

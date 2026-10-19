@@ -15,8 +15,11 @@ public class MaiDataManager
 
         context.Database.Migrate();
 
-        Songs = context.MaiSongs.Include(x => x.Charts).ToArray();
-        Aliases = context.MaiAliases.ToArray();
+        Songs = context.MaiSongs.Include(x => x.Charts).OrderBy(x => x.SapphireId).AsNoTracking().ToArray();
+        Aliases = context.MaiAliases.AsNoTracking().OrderBy(x => x.AliasId).ToArray();
+
+        Versions = context.MaiVersions.AsNoTracking().OrderBy(x => x.VersionIndex).ToArray();
+        Categories = context.MaiCategories.AsNoTracking().OrderBy(x => x.CategoryIndex).ToArray();
 
         BakeIndexingData();
 
@@ -28,6 +31,8 @@ public class MaiDataManager
 
     public MaiSongDto[] Songs { get; private set; }
     public MaiAliasDto[] Aliases { get; private set; }
+    public MaiVersionDto[] Versions { get; private set; }
+    public MaiCategoryDto[] Categories { get; private set; }
 
     public Dictionary<MaiSongDto, string> SongNameSearchKeys { get; } = [];
     public Dictionary<MaiSongDto, string> ArtistSearchKeys { get; } = [];

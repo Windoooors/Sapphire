@@ -30,7 +30,10 @@ public class WckSessionLoginCommand : MaiCommandBase // Wck stands for WahlapCon
                 QqId = context.UserId
             });
 
-            var resp = await Program.HttpClient.SendAsync(request);
+            using var cts = new CancellationTokenSource(
+                TimeSpan.FromSeconds(10));
+
+            var resp = await Program.HttpClient.SendAsync(request, cts.Token);
 
             var responseString = await resp.Content.ReadAsStringAsync();
 

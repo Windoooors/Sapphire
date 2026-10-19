@@ -83,12 +83,12 @@ public abstract class CommandBase
         await SendMessage(context, ["dame"]);
     }
 
-    protected static async Task SendUnknownError(CqMessagePostContext context)
+    public static async Task SendUnknownError(CqMessagePostContext context)
     {
         await SendMessage(context, ["出现了未知的错误"]);
     }
 
-    protected static async Task SendArgumentError(CqMessagePostContext context)
+    public static async Task SendArgumentError(CqMessagePostContext context)
     {
         await SendMessage(context, ["参数错误"]);
     }

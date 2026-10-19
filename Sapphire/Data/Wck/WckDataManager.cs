@@ -7,7 +7,7 @@ using Sapphire.Environments;
 
 namespace Sapphire.Data.Wck;
 
-public class WckDataManager : MaiCommandBase // Wck stands for WahlapConnectiveKits
+public static class WckDataManager // Wck stands for WahlapConnectiveKits
 {
     public static async Task<string?> GetSessionId(CqMessagePostContext context, bool sendHelp = true)
     {
@@ -19,11 +19,11 @@ public class WckDataManager : MaiCommandBase // Wck stands for WahlapConnectiveK
         {
             if (ex is HttpRequestException { StatusCode: HttpStatusCode.BadRequest })
             {
-                if (sendHelp) await SendNotLoggedInError(context);
+                if (sendHelp) await MaiCommandBase.SendNotLoggedInError(context);
                 return null;
             }
 
-            if (sendHelp) await SendUnknownError(context);
+            if (sendHelp) await CommandBase.SendUnknownError(context);
             return null;
         }
     }

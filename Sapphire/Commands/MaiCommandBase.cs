@@ -102,12 +102,12 @@ public abstract class MaiCommandBase : CommandBase
         return stringBuilder.ToString().Trim();
     }
 
-    protected static async Task SendUnauthorizedError(CqMessagePostContext context)
+    public static async Task SendUnauthorizedError(CqMessagePostContext context)
     {
         await SendMessage(context, ["您未授权"]);
     }
 
-    protected static async Task SendNotLoggedInError(CqMessagePostContext context)
+    public static async Task SendNotLoggedInError(CqMessagePostContext context)
     {
         await SendMessage(context, ["您未登录"]);
     }

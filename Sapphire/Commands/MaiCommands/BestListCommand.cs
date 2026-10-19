@@ -61,6 +61,11 @@ public class BestListCommand : MaiCommandBase
                 LongName = "--fit",
                 ShortName = "-f",
                 TakesValue = false
+            },
+            new FlagSpec
+            {
+                LongName = "--user",
+                ShortName = "-u"
             }
         ];
     }
@@ -84,10 +89,8 @@ public class BestListCommand : MaiCommandBase
             if (MaiDataManager.Instance == null)
                 continue;
 
-            if (sapphireId - 1 >= MaiDataManager.Instance.Songs.Length)
+            if (!MaiDataManager.Instance.SapphireIdToSong.TryGetValue(sapphireId, out var song))
                 continue;
-
-            var song = MaiDataManager.Instance.SapphireIdToSong[sapphireId];
 
             if (chartIndex >= song.Charts.Count)
                 continue;
@@ -120,7 +123,18 @@ public class BestListCommand : MaiCommandBase
         var useFc = commandContext.HasFlag("--full-combo");
         var useFit = commandContext.HasFlag("--fit");
 
-        await ProcessBase(context, (i, record, song, chartIndex) =>
+        var useAssignedUserId = commandContext.HasFlag("--user");
+        var userIdString = commandContext.GetFlag("--user");
+
+        var userId = context.UserId;
+
+        if (useAssignedUserId && (userIdString == null || !long.TryParse(userIdString, out userId)))
+        {
+            await SendMessage(context, ["无效的用户码"]);
+            return;
+        }
+
+        await ProcessBase(context, userId, (i, record, song, chartIndex) =>
         {
             if (useAp && record.ClearState is not ClearState.AllPerfect and not ClearState.AllPerfectPlus)
                 return false;
@@ -139,11 +153,12 @@ public class BestListCommand : MaiCommandBase
 
     protected override async Task Process(CqMessagePostContext context)
     {
-        await ProcessBase(context, (_, _, _, _) => true,
+        await ProcessBase(context, context.UserId, (_, _, _, _) => true,
             false, false, false);
     }
 
-    private async Task ProcessBase(CqMessagePostContext context, Func<int, MaiPlayRecord, MaiSongDto, int, bool> filter,
+    private async Task ProcessBase(CqMessagePostContext context, long userId,
+        Func<int, MaiPlayRecord, MaiSongDto, int, bool> filter,
         bool usePc, bool useFit, bool useJpLevel)
     {
         var startTime = DateTime.UtcNow;
@@ -156,13 +171,13 @@ public class BestListCommand : MaiCommandBase
 
         var env = SpEnvironmentHandler.Environment.Mai;
 
-        var userRecordBytes = await MaiDataManager.Instance.GetUserPlayRecordsInBytesAsync(context.UserId);
+        var userRecordBytes = await MaiDataManager.Instance.GetUserPlayRecordsInBytesAsync(userId);
 
         var sb = new StringBuilder();
 
         if (userRecordBytes == null)
         {
-            sb.Append("查询不到您的游玩记录");
+            sb.Append("无游玩记录");
             await SendMessage(context, [sb.ToString()]);
             return;
         }
@@ -174,7 +189,7 @@ public class BestListCommand : MaiCommandBase
 
         if (usePc && totalPc == 0)
         {
-            await SendMessage(context, ["您的记录中不包含游玩次数信息"]);
+            await SendMessage(context, ["记录中不包含游玩次数信息"]);
             return;
         }
 
@@ -194,26 +209,37 @@ public class BestListCommand : MaiCommandBase
 
         var recordsOldSorted = GetTopRecords(userRecords,
             (i, r, song, chartIndex) =>
-                (useJpLevel ? song.JpVersionIndex : song.CnVersionIndex) <
-                (useJpLevel ? env.JpLastestVersionIndex : env.CnLastestVersionIndex) &&
-                filter(i, r, song, chartIndex), comparison);
+            {
+                var songVersion = useJpLevel ? song.JpVersionIndex : song.CnVersionIndex;
+
+                var indexes = useJpLevel
+                    ? env.JpLastestVersionIndexes
+                    : env.CnLastestVersionIndexes;
+
+                return indexes.All(x => songVersion >= x) &&
+                       filter(i, r, song, chartIndex);
+            }, comparison);
         var recordsNewSorted = GetTopRecords(userRecords,
             (i, r, song, chartIndex) =>
-                (useJpLevel ? song.JpVersionIndex : song.CnVersionIndex) ==
-                (useJpLevel ? env.JpLastestVersionIndex : env.CnLastestVersionIndex) &&
-                filter(i, r, song, chartIndex), comparison, 15);
+            {
+                var songVersion = (useJpLevel ? song.JpVersionIndex : song.CnVersionIndex) ?? -1;
+                var indexes = useJpLevel
+                    ? env.JpLastestVersionIndexes
+                    : env.CnLastestVersionIndexes;
+                return indexes.Contains(songVersion) && filter(i, r, song, chartIndex);
+            }, comparison, 15);
 
         var queryTime = DateTime.UtcNow - startTime;
         var generationStartTime = DateTime.UtcNow;
 
-        var userName = await GetUserName(context.UserId);
+        var userName = await GetUserName(userId);
 
         var dataObject = new BestListData
         {
             NewBestList = recordsNewSorted,
             OldBestList = recordsOldSorted,
             UserName = userName,
-            UserId = context.UserId
+            UserId = userId
         };
 
         var imageResult =

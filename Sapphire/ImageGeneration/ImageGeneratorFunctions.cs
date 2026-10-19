@@ -21,7 +21,7 @@ public static class ImageGeneratorFunctions
 
     public static void DrawSimpleText(DrawingCanvas canvas, FontFamily fontFamily, float sizeInPt, string text,
         PointF point,
-        HorizontalAlignment alignment, float opacity = 1f, float maxWidth = float.MaxValue)
+        HorizontalAlignment alignment, float opacity = 1f, float maxWidth = float.MaxValue, Color? color = null)
     {
         var textOptions = new RichTextOptions(fontFamily.CreateFont(sizeInPt))
         {
@@ -36,7 +36,7 @@ public static class ImageGeneratorFunctions
 
         canvas.DrawText(textOptions, text,
             Brushes.Solid(
-                ColorPalette.GetColorWithNewTransparency(ColorPalette.FontColor, opacity))
+                ColorPalette.GetColorWithNewTransparency(color ?? ColorPalette.FontColor, opacity))
             , null);
     }
 

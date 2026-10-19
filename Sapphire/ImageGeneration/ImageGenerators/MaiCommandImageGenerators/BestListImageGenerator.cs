@@ -32,7 +32,6 @@ public static class BestListImageGenerator
     {
         using var backgroundImage = new Image<Rgba32>(2880, 2200, ColorPalette.BackgroundColor.ToPixel<Rgba32>());
 
-
         backgroundImage.Mutate(x =>
         {
             using var maskImage = new Image<Rgba32>(2880, 1880,
@@ -121,7 +120,7 @@ public static class BestListImageGenerator
                     $"{oldRating + newRating}·{oldRating}·{newRating}", new PointF(2681.3f, 135.6f),
                     HorizontalAlignment.Right);
 
-                var textOptions = new RichTextOptions(ColorPalette.NormalFont.CreateFont(22f))
+                var textOptions = new RichTextOptions(ColorPalette.RegularFont.CreateFont(22f))
                 {
                     Origin = new PointF(2792.9f, 227.8f),
                     Dpi = 96f,
@@ -175,7 +174,7 @@ public static class BestListImageGenerator
 
             x.Paint(y =>
             {
-                ImageGeneratorFunctions.DrawSimpleText(y, ColorPalette.NormalFont, 15.7f, "标题", new PointF(106.7f, -1f),
+                ImageGeneratorFunctions.DrawSimpleText(y, ColorPalette.NormalFont, 15.7f, "曲名", new PointF(106.7f, -1f),
                     HorizontalAlignment.Left, 0.5f);
                 ImageGeneratorFunctions.DrawSimpleText(y, ColorPalette.RegularFont, 24f, songName,
                     new PointF(106.7f, 18.3f),
@@ -196,21 +195,21 @@ public static class BestListImageGenerator
                     [
                         new RichTextRun
                         {
-                            Font = ColorPalette.RegularFont.CreateFont(26f),
+                            Font = ColorPalette.RegularFont.CreateFont(26),
                             Start = 0,
-                            End = achievementText.Length - 6
+                            End = achievementText.Length - 6 < 1 ? 1 : achievementText.Length - 6
                         },
                         new RichTextRun
                         {
-                            Font = ColorPalette.RegularFont.CreateFont(22f),
-                            Start = achievementText.Length - 5,
+                            Font = ColorPalette.RegularFont.CreateFont(22),
+                            Start = achievementText.Length - 6 < 1 ? 1 : achievementText.Length - 6,
                             End = achievementText.Length + 1
                         },
                         new RichTextRun
                         {
-                            Font = ColorPalette.HeavyFont.CreateFont(22f),
+                            Font = ColorPalette.HeavyFont.CreateFont(22),
                             Start = achievementText.Length + 1,
-                            End = achievementText.Length + rateText.Length + 1
+                            End = achievementText.Length + 1 + rateText.Length
                         }
                     ]
                 };
@@ -218,8 +217,6 @@ public static class BestListImageGenerator
                 y.DrawText(textOptions, $"{achievementText}·{rateText}", Brushes.Solid(ColorPalette.FontColor), null);
 
                 var altInfoStringBuilder = new StringBuilder($"#{index + 1}·SID{song.SapphireId}");
-                if (song.SongId != null)
-                    altInfoStringBuilder.Append($"·ID{song.SongId}");
                 altInfoStringBuilder.Append($"·{
                     levelIndex switch {
                         0 => "bas",
@@ -229,7 +226,13 @@ public static class BestListImageGenerator
                         4 => "re",
                         _ => "unknown"
                     }
-                }");
+                }·");
+                altInfoStringBuilder.Append(song.SongType switch
+                {
+                    MaiSongType.Dx => "dx",
+                    MaiSongType.Std => "std",
+                    _ => "unknown"
+                });
 
                 ImageGeneratorFunctions.DrawSimpleText(y, ColorPalette.NormalFont, 15.7f,
                     altInfoStringBuilder.ToString(),

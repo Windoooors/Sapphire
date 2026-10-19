@@ -94,7 +94,7 @@ public static class ApiOperator
         }
         catch (Exception e)
         {
-            Log.Error(e, "Error occured while deserializing DivingFish user access token");
+            Log.Error(e, "Error occurred while deserializing DivingFish user access token");
             return false;
         }
     }

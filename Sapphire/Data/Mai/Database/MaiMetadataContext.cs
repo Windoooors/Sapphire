@@ -8,6 +8,8 @@ public class MaiMetadataContext : DbContext
 {
     public DbSet<MaiSongDto> MaiSongs { get; init; }
     public DbSet<MaiAliasDto> MaiAliases { get; init; }
+    public DbSet<MaiVersionDto> MaiVersions { get; init; }
+    public DbSet<MaiCategoryDto> MaiCategories { get; init; }
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
@@ -36,5 +38,11 @@ public class MaiMetadataContext : DbContext
         aliasEntityBuilder.HasOne(x => x.Song);
 
         aliasEntityBuilder.HasKey(x => x.AliasId);
+
+        var versionEntityBuilder = modelBuilder.Entity<MaiVersionDto>();
+        versionEntityBuilder.HasKey(x => x.VersionIndex);
+
+        var categoryEntityBuilder = modelBuilder.Entity<MaiCategoryDto>();
+        categoryEntityBuilder.HasKey(x => x.CategoryIndex);
     }
 }

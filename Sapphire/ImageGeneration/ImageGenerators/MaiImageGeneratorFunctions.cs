@@ -52,6 +52,15 @@ public static class MaiImageGeneratorFunctions
         return Image.Load<Rgba32>(coverPath);
     }
 
+    public static Image GetCoverHdImage(int sapphireId)
+    {
+        var coverPath = Path.Combine(AppContext.BaseDirectory, "Resources", "CoversHd", sapphireId + ".png");
+        if (!File.Exists(coverPath))
+            coverPath = Path.Combine(AppContext.BaseDirectory, "Resources", "CoversHd", "0.png");
+
+        return Image.Load<Rgba32>(coverPath);
+    }
+
     public static string GetRateText(uint achievement)
     {
         if (achievement >= 1005000)
@@ -93,7 +102,7 @@ public static class MaiImageGeneratorFunctions
 
         var decimals = achievement % 10000;
 
-        stringBuilder.Append(decimals == 0 ? "0000" : decimals.ToString());
+        stringBuilder.Append($"{decimals:0000}");
         stringBuilder.Append('%');
         return stringBuilder.ToString();
     }
@@ -108,9 +117,9 @@ public static class MaiImageGeneratorFunctions
         stringBuilder.Append(level / 100);
         stringBuilder.Append('.');
         if (keepMoreDigits)
-            stringBuilder.Append(level % 100);
+            stringBuilder.Append($"{level % 100:00}");
         else
-            stringBuilder.Append(level % 100 / 10);
+            stringBuilder.Append($"{level % 100 / 10:0}");
         return stringBuilder.ToString();
     }
 

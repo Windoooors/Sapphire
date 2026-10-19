@@ -31,7 +31,7 @@ public static class Program
 
         LoggerInitializer.Initialize();
 
-        Log.Information("Sapphire is initializing commands...");
+        Log.Information("Initializing commands");
 
         _settingsDataManager = new SettingsDataManager();
 
@@ -39,7 +39,7 @@ public static class Program
 
         foreach (var groupCommandBase in GroupCommands) groupCommandBase.StartInitialize();
 
-        Log.Information("Commands initialized.");
+        Log.Information("Commands initialized");
 
         await BotSessionHandler.RunSession(_sessionCancellationToken,
             StartParsing);
@@ -51,7 +51,7 @@ public static class Program
     {
         _commandParser = new CommandParser(GroupCommands, CommandPrefixes);
 
-        session.UseGroupMessage(async context => { await _commandParser.ParseAndExecute(context); });
-        session.UsePrivateMessage(async context => { await _commandParser.ParseAndExecute(context); });
+        session.UseGroupMessage(context => { _ = _commandParser.ParseAndExecute(context); });
+        session.UsePrivateMessage(context => { _ = _commandParser.ParseAndExecute(context); });
     }
 }
