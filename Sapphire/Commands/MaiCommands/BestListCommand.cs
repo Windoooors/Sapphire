@@ -216,7 +216,7 @@ public class BestListCommand : MaiCommandBase
                     ? env.JpLastestVersionIndexes
                     : env.CnLastestVersionIndexes;
 
-                return indexes.All(x => songVersion >= x) &&
+                return !indexes.All(x => songVersion >= x) &&
                        filter(i, r, song, chartIndex);
             }, comparison);
         var recordsNewSorted = GetTopRecords(userRecords,

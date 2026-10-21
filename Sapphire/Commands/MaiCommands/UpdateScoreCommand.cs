@@ -21,7 +21,7 @@ public class UpdateScoreCommand : MaiCommandBase
         [
             new FlagSpec
             {
-                LongName = "--divingfish",
+                LongName = "--diving-fish",
                 ShortName = "-df"
             },
             new FlagSpec
@@ -142,7 +142,7 @@ public class UpdateScoreCommand : MaiCommandBase
 
     protected override async Task ProcessWithArguments(CommandContext commandContext, CqMessagePostContext context)
     {
-        if (commandContext.HasFlag("--divingfish"))
+        if (commandContext.HasFlag("--diving-fish"))
         {
             await UpdateDf(context);
 

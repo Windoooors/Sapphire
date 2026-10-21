@@ -4,6 +4,7 @@ using Sapphire.Commands.MaiCommands;
 using Sapphire.Data.DivingFishMai;
 using Sapphire.Data.Mai;
 using Sapphire.Data.Mai.Dtos;
+using Sapphire.Utils;
 
 namespace Sapphire.Commands;
 
@@ -44,6 +45,65 @@ public abstract class MaiCommandBase : CommandBase
                 if (song != null)
                     resultList.Add(song);
             }
+
+            songs = resultList.ToHashSet().ToArray();
+            return true;
+        }
+
+        /* 在锁定搜索范围为宴谱之前，先搜索普通歌曲，以避免类似 "xx" 只能搜到宴谱的情况 */
+
+        var searchDx = loweredKey.StartsWith("dx");
+        if (searchDx)
+            loweredKey = loweredKey.Substring(2, loweredKey.Length - 2);
+        var searchStd = loweredKey.StartsWith("标");
+        if (searchStd)
+            loweredKey = loweredKey.Substring(1, loweredKey.Length - 1);
+
+        if (MaiDataManager.Instance.AliasToSongs.TryGetValue(loweredKey, out var songsByAliasWithoutUtageConsider))
+            resultList.AddRange(songsByAliasWithoutUtageConsider);
+        if (MaiDataManager.Instance.SongNameToSongs.TryGetValue(loweredKey, out var songsByTitleWithoutUtageConsider))
+            resultList.AddRange(songsByTitleWithoutUtageConsider);
+
+        if (searchDx)
+        {
+            var groupResult = resultList.GroupBy(x => x.SongName + x.ArtistName).Where(x => x.Count() == 1);
+
+            foreach (var group in groupResult)
+            foreach (var song in group)
+                resultList.Remove(song);
+
+            resultList.RemoveAll(x => x.SongType != MaiSongType.Dx);
+        }
+
+        if (searchStd)
+        {
+            var groupResult = resultList.GroupBy(x => x.SongName + x.ArtistName).Where(x => x.Count() == 1);
+
+            foreach (var group in groupResult)
+            foreach (var song in group)
+                resultList.Remove(song);
+
+            resultList.RemoveAll(x => x.SongType != MaiSongType.Std);
+        }
+
+        if (resultList.Count != 0)
+        {
+            songs = resultList.ToHashSet().ToArray();
+            return true;
+        }
+
+        /* 标准化 key，找到指定的宴谱汉字及搜索范围 */
+
+        var normalizedKey = SearchHelper.NormalizeCjkString(loweredKey);
+
+        var searchUtage = normalizedKey.Length >= 1 &&
+                          MaiDataManager.Instance.UtageKanjiToSongs.ContainsKey(normalizedKey[0]
+                          );
+        MaiSongDto[]? utageKanjiSongs = null;
+        if (searchUtage)
+        {
+            loweredKey = loweredKey.Substring(1, loweredKey.Length - 1);
+            utageKanjiSongs = MaiDataManager.Instance.UtageKanjiToSongs[normalizedKey[0]];
         }
 
         if (MaiDataManager.Instance.AliasToSongs.TryGetValue(loweredKey, out var songsByAlias))
@@ -51,6 +111,8 @@ public abstract class MaiCommandBase : CommandBase
         if (MaiDataManager.Instance.SongNameToSongs.TryGetValue(loweredKey, out var songsByTitle))
             resultList.AddRange(songsByTitle);
 
+
+        /* 如果没有结果，则开始模糊匹配 */
         if (resultList.Count == 0)
         {
             var songNamePredicate = SearchCommand.CreateSongNamePredicate(loweredKey);
@@ -58,6 +120,17 @@ public abstract class MaiCommandBase : CommandBase
 
             resultList.AddRange(
                 MaiDataManager.Instance.Songs.Where(x => songAliasPredicate(x) || songNamePredicate(x)));
+        }
+
+        if (!searchUtage)
+        {
+            resultList.RemoveAll(x => x.SongType == MaiSongType.Utage);
+        }
+        else
+        {
+            resultList.RemoveAll(x => x.SongType == MaiSongType.Dx);
+            resultList.RemoveAll(x => x.SongType == MaiSongType.Std);
+            resultList.RemoveAll(x => !utageKanjiSongs.Contains(x));
         }
 
         songs = resultList.ToHashSet().ToArray();

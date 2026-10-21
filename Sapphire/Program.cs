@@ -15,7 +15,10 @@ public static class Program
     private static SettingsDataManager? _settingsDataManager;
 
     private static readonly CommandBase[] GroupCommands =
-        [new PingCommand(), new MaiCommand(), new SettingsCommand(), new ConfirmationCommand(), new NrConvertCommand()];
+    [
+        new PingCommand(), new MaiCommand(), new SettingsCommand(), new ConfirmationCommand(), new NrConvertCommand(),
+        new GayFactor()
+    ];
 
     private static readonly string[] CommandPrefixes = ["s"];
 
@@ -33,16 +36,36 @@ public static class Program
 
         Log.Information("Initializing commands");
 
-        _settingsDataManager = new SettingsDataManager();
+        try
+        {
+            _settingsDataManager = new SettingsDataManager();
 
-        _sessionCancellationToken = CancellationToken.None;
+            _sessionCancellationToken = CancellationToken.None;
 
-        foreach (var groupCommandBase in GroupCommands) groupCommandBase.StartInitialize();
+            foreach (var groupCommandBase in GroupCommands) groupCommandBase.StartInitialize();
+        }
+        catch (Exception e)
+        {
+            Log.Error(e, "Error occurred when initializing commands");
+#if DEBUG
+            throw;
+#endif
+        }
 
         Log.Information("Commands initialized");
 
-        await BotSessionHandler.RunSession(_sessionCancellationToken,
-            StartParsing);
+        try
+        {
+            await BotSessionHandler.RunSession(_sessionCancellationToken,
+                StartParsing);
+        }
+        catch (Exception e)
+        {
+            Log.Error(e, "Unknown error occurred");
+#if DEBUG
+            throw;
+#endif
+        }
 
         keepAlive.WaitOne();
     }

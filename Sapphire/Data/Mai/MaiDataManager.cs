@@ -15,8 +15,15 @@ public class MaiDataManager
 
         context.Database.Migrate();
 
-        Songs = context.MaiSongs.Include(x => x.Charts).OrderBy(x => x.SapphireId).AsNoTracking().ToArray();
-        Aliases = context.MaiAliases.AsNoTracking().OrderBy(x => x.AliasId).ToArray();
+        Songs = context.MaiSongs
+            .Include(x => x.Charts.OrderBy(y => y.LevelIndex))
+            .OrderBy(x => x.SapphireId)
+            .ToArray();
+
+        Aliases = context.MaiAliases
+            .Include(x => x.Song)
+            .OrderBy(x => x.AliasId)
+            .ToArray();
 
         Versions = context.MaiVersions.AsNoTracking().OrderBy(x => x.VersionIndex).ToArray();
         Categories = context.MaiCategories.AsNoTracking().OrderBy(x => x.CategoryIndex).ToArray();
@@ -44,6 +51,7 @@ public class MaiDataManager
     public Dictionary<string, MaiSongDto[]> AliasToSongs { get; } = [];
     public Dictionary<MaiSongDto, MaiAliasDto[]> SongToAliases { get; } = [];
     public Dictionary<int, MaiAliasDto> AliasIdToAlias { get; } = [];
+    public Dictionary<char, MaiSongDto[]> UtageKanjiToSongs { get; } = [];
 
     public async Task<bool> InsertUserPlayRecords(MaiPlayRecord[] records, long userId)
     {
@@ -91,6 +99,9 @@ public class MaiDataManager
         AliasToSongs.Clear();
         SongToAliases.Clear();
         AliasIdToAlias.Clear();
+        UtageKanjiToSongs.Clear();
+
+        UtageKanjiToSongs.TryAdd('宴', [.. Songs.Where(x => x.SongType == MaiSongType.Utage)]);
 
         foreach (var maiSongDto in Songs)
         {
@@ -99,8 +110,37 @@ public class MaiDataManager
 
             var songName = maiSongDto.SongName.ToLower();
 
-            SongNameToSongs.TryAdd(songName, [.. Songs.Where(x => x.SongName?.ToLower() == songName)]);
+            if (maiSongDto.SongType == MaiSongType.Utage && songName.Length >= 3)
+            {
+                var utageKanji = SearchHelper.NormalizeCjkString(songName)[0];
+
+                UtageKanjiToSongs.TryAdd(utageKanji,
+                [
+                    .. Songs.Where(x =>
+                        x.SongType == MaiSongType.Utage &&
+                        SearchHelper.NormalizeCjkString(x.SongName ?? "-")[0] == utageKanji)
+                ]);
+
+                songName = songName.Substring(3, songName.Length - 3);
+            }
+
+            SongNameToSongs.TryAdd(songName, [
+                .. Songs.Where(x =>
+                {
+                    var xSongName = x.SongName?.ToLower();
+
+                    if (xSongName == null)
+                        return false;
+
+                    if (x.SongType == MaiSongType.Utage && xSongName.Length >= 3)
+                        xSongName = xSongName.Substring(3, xSongName.Length - 3);
+
+                    return xSongName == songName;
+                })
+            ]);
+
             SapphireIdToSong.TryAdd(maiSongDto.SapphireId, maiSongDto);
+            
             if (maiSongDto.SongId != null)
                 IdToSong.TryAdd(maiSongDto.SongId ?? 0, maiSongDto);
 
@@ -119,8 +159,18 @@ public class MaiDataManager
 
         foreach (var maiSongDto in Songs)
         {
-            SongNameSearchKeys.TryAdd(maiSongDto, SearchHelper.NormalizeCjkString(maiSongDto.SongName ?? ""));
-            ArtistSearchKeys.TryAdd(maiSongDto, SearchHelper.NormalizeCjkString(maiSongDto.ArtistName ?? ""));
+            var songName = maiSongDto.SongName;
+            if (songName != null)
+            {
+                if (maiSongDto.SongType == MaiSongType.Utage && songName.Length >= 3)
+                    songName = songName.Substring(3, songName.Length - 3);
+
+                SongNameSearchKeys.TryAdd(maiSongDto, SearchHelper.NormalizeCjkString(songName));
+            }
+
+            var artistName = maiSongDto.ArtistName;
+            if (artistName != null)
+                ArtistSearchKeys.TryAdd(maiSongDto, SearchHelper.NormalizeCjkString(artistName));
 
             AliasSearchKeys.TryAdd(maiSongDto, [
                 .. SongToAliases[maiSongDto].Select(x => SearchHelper.NormalizeCjkString(
@@ -147,8 +197,15 @@ public class MaiDataManager
 
         await context.SaveChangesAsync();
 
-        Songs = await context.MaiSongs.ToArrayAsync();
-        Aliases = await context.MaiAliases.ToArrayAsync();
+        Songs = context.MaiSongs
+            .Include(x => x.Charts.OrderBy(y => y.LevelIndex))
+            .OrderBy(x => x.SapphireId)
+            .ToArray();
+
+        Aliases = context.MaiAliases
+            .Include(x => x.Song)
+            .OrderBy(x => x.AliasId)
+            .ToArray();
 
         BakeIndexingData();
 
@@ -176,8 +233,15 @@ public class MaiDataManager
 
         await context.SaveChangesAsync();
 
-        Songs = await context.MaiSongs.ToArrayAsync();
-        Aliases = await context.MaiAliases.ToArrayAsync();
+        Songs = context.MaiSongs
+            .Include(x => x.Charts.OrderBy(y => y.LevelIndex))
+            .OrderBy(x => x.SapphireId)
+            .ToArray();
+
+        Aliases = context.MaiAliases
+            .Include(x => x.Song)
+            .OrderBy(x => x.AliasId)
+            .ToArray();
 
         BakeIndexingData();
 

@@ -1,7 +1,7 @@
 using SixLabors.Fonts;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Drawing.Processing;
-using SixLabors.ImageSharp.Formats.Jpeg;
+using SixLabors.ImageSharp.Formats.Png;
 
 namespace Sapphire.ImageGeneration;
 
@@ -11,10 +11,7 @@ public static class ImageGeneratorFunctions
     {
         using var ms = new MemoryStream();
 
-        await image.SaveAsync(ms, new JpegEncoder
-        {
-            Quality = 90
-        });
+        await image.SaveAsync(ms, new PngEncoder());
 
         return Convert.ToBase64String(ms.ToArray());
     }

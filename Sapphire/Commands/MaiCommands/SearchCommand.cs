@@ -59,7 +59,25 @@ public class SearchCommand : MaiCommandBase
         if (value?.Length == 0) return _ => true;
 
         var inputKey = SearchHelper.NormalizeCjkString(value ?? "");
-        return x => MaiDataManager.Instance?.SongNameSearchKeys[x].Contains(inputKey.ToLower()) ?? false;
+
+        var searchUtage = inputKey.Length >= 1 &&
+                          (MaiDataManager.Instance?.UtageKanjiToSongs.ContainsKey(inputKey[0]) ?? false);
+
+        MaiSongDto[]? utageKanjiSongs = null;
+        string? originalInputKey = null;
+
+        if (searchUtage)
+        {
+            utageKanjiSongs = MaiDataManager.Instance?.UtageKanjiToSongs[inputKey[0]];
+            originalInputKey = inputKey;
+            inputKey = inputKey.Substring(1);
+        }
+
+        return x => (MaiDataManager.Instance?.SongNameSearchKeys[x].Contains(inputKey.ToLower()) ?? false) &&
+                    ((searchUtage &&
+                      (utageKanjiSongs.Contains(x) ||
+                       MaiDataManager.Instance.SongNameSearchKeys[x].Contains(originalInputKey?.ToLower() ?? ""))) ||
+                     !searchUtage);
     }
 
     public static Func<MaiSongDto, bool> CreateSongAliasPredicate(string? value)
@@ -67,8 +85,26 @@ public class SearchCommand : MaiCommandBase
         if (value?.Length == 0) return _ => true;
 
         var inputKey = SearchHelper.NormalizeCjkString(value ?? "");
-        return x => MaiDataManager.Instance?.AliasSearchKeys[x].Any(y => y.Contains(inputKey.ToLower())) ??
-                    false;
+
+        var searchUtage = inputKey.Length >= 1 &&
+                          (MaiDataManager.Instance?.UtageKanjiToSongs.ContainsKey(inputKey[0]) ?? false);
+
+        MaiSongDto[]? utageKanjiSongs = null;
+        string? originalInputKey = null;
+
+        if (searchUtage)
+        {
+            utageKanjiSongs = MaiDataManager.Instance?.UtageKanjiToSongs[inputKey[0]];
+            originalInputKey = inputKey;
+            inputKey = inputKey.Substring(1);
+        }
+
+        return x => (MaiDataManager.Instance?.AliasSearchKeys[x]
+                        .Any(y => y.Contains(inputKey.ToLower())) ?? false) &&
+                    ((searchUtage &&
+                      (utageKanjiSongs.Contains(x) ||
+                       MaiDataManager.Instance.AliasSearchKeys[x].Contains(originalInputKey?.ToLower() ?? ""))) ||
+                     !searchUtage);
     }
 
     private static Func<MaiSongDto, bool> CreateArtistPredicate(string? value)

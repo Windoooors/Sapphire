@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Headers;
+using System.Net.Http.Json;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -12,18 +13,18 @@ namespace Sapphire.Data.DivingFishMai;
 
 public static class ApiOperator
 {
-    private static readonly Dictionary<long, (string, DateTime)> _userCredentials = [];
+    private static readonly Dictionary<long, (string, DateTime)> UserCredentials = [];
 
     public static async Task<(string? result, HttpStatusCode? statusCode)> PostWithCredentials(string url,
-        Dictionary<string, string> requestBody, long userId)
+        Dictionary<string, string> requestBody, long userId, bool write = false)
     {
-        if (!_userCredentials.TryGetValue(userId, out var userCredential) ||
+        if (!UserCredentials.TryGetValue(userId, out var userCredential) ||
             DateTime.UtcNow >= userCredential.Item2)
         {
             var bound = await FetchUserCredentialAsync(userId);
             if (!bound) return (null, null);
 
-            userCredential = _userCredentials[userId];
+            userCredential = UserCredentials[userId];
         }
 
         using var request = new HttpRequestMessage(HttpMethod.Post, url);
@@ -37,15 +38,38 @@ public static class ApiOperator
         return (stringResult, response.StatusCode);
     }
 
-    public static async Task<(string? result, HttpStatusCode? statusCode)> GetWithCredentials(string url, long userId)
+    public static async Task<(string? result, HttpStatusCode? statusCode)> PostWithCredentials(string url,
+        HttpContent requestContent, long userId)
     {
-        if (!_userCredentials.TryGetValue(userId, out var userCredential) ||
+        if (!UserCredentials.TryGetValue(userId, out var userCredential) ||
             DateTime.UtcNow >= userCredential.Item2)
         {
             var bound = await FetchUserCredentialAsync(userId);
             if (!bound) return (null, null);
 
-            userCredential = _userCredentials[userId];
+            userCredential = UserCredentials[userId];
+        }
+
+        using var request = new HttpRequestMessage(HttpMethod.Post, url);
+
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", userCredential.Item1);
+        request.Content = requestContent;
+
+        var response = await Program.HttpClient.SendAsync(request);
+        var stringResult = await response.Content.ReadAsStringAsync();
+
+        return (stringResult, response.StatusCode);
+    }
+    
+    public static async Task<(string? result, HttpStatusCode? statusCode)> GetWithCredentials(string url, long userId)
+    {
+        if (!UserCredentials.TryGetValue(userId, out var userCredential) ||
+            DateTime.UtcNow >= userCredential.Item2)
+        {
+            var bound = await FetchUserCredentialAsync(userId);
+            if (!bound) return (null, null);
+
+            userCredential = UserCredentials[userId];
         }
 
         using var request = new HttpRequestMessage(HttpMethod.Get, url);
@@ -69,7 +93,7 @@ public static class ApiOperator
             ["grant_type"] = "urn:diving-fish:params:oauth:grant-type:on-behalf-of",
             ["client_id"] = env.ClientId,
             ["client_secret"] = env.ClientSecret,
-            ["scope"] = "prober.records.read",
+            ["scope"] = "prober.records.write prober.records.read",
             ["subject"] = "ref:" + refString
         };
 
@@ -88,8 +112,8 @@ public static class ApiOperator
 
             var item = (contentObject.AccessToken, DateTime.UtcNow.AddSeconds(contentObject.ExpiresIn - 30));
 
-            if (!_userCredentials.TryAdd(userId, item))
-                _userCredentials[userId] = item;
+            if (!UserCredentials.TryAdd(userId, item))
+                UserCredentials[userId] = item;
             return true;
         }
         catch (Exception e)

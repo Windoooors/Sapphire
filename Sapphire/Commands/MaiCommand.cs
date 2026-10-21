@@ -14,7 +14,7 @@ public class MaiCommand : MaiCommandBase
         SubCommands =
         [
             new SearchCommand(), new AliasCommand(), new BindCommand(), new UpdateScoreCommand(), new InfoCommand(),
-            new BestListCommand(), new WckSessionLoginCommand(), new WckSessionLogoutCommand()
+            new BestListCommand(), new WckSessionLoginCommand(), new WckSessionLogoutCommand(), new ExportCommand()
         ];
     }
 

@@ -67,8 +67,8 @@ public class InfoCommand : MaiCommandBase
             return;
         }
 
-        string? imageString = null;
-
+        string? imageString;
+        
         var song = songs[0];
 
         if (commandContext.HasFlag("--score"))
@@ -105,15 +105,19 @@ public class InfoCommand : MaiCommandBase
                     songRecords.Add(userRecords[index]);
                 }
 
-                imageString = await ImageGenerationHandler.Instance.AddTask(InfoImageGenerator.Generate(song, [.. songRecords],
+                imageString = await ImageGenerationHandler.Instance.AddTask(InfoImageGenerator.Generate(song,
+                    [.. songRecords],
                     useAssignedUserId ? userId : context.UserId, userName, commandContext.HasFlag("--japan")));
+                
+                await SendMessage(context,
+                [
+                    new CqImageMsg("base64://" + imageString),
+                    $"查询用时 {queryTime.TotalMilliseconds}ms，图片生成用时 {(DateTime.UtcNow - generationStartTime).TotalMilliseconds}ms"
+                ]);
+                return;
             }
 
-            await SendMessage(context,
-            [
-                new CqImageMsg("base64://" + imageString),
-                $"查询用时 {queryTime.TotalMilliseconds}ms，图片生成用时 {(DateTime.UtcNow - generationStartTime).TotalMilliseconds}ms"
-            ]);
+            await SendMessage(context, ["无游玩记录"]);
         }
         else
         {

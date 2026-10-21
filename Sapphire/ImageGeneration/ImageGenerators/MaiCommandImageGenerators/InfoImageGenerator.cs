@@ -17,6 +17,7 @@ public static class InfoImageGenerator
     private static readonly Image ExpertIndicatorImage;
     private static readonly Image AdvancedIndicatorImage;
     private static readonly Image BasicIndicatorImage;
+    private static readonly Image UtageIndicatorImage;
 
     static InfoImageGenerator()
     {
@@ -74,9 +75,20 @@ public static class InfoImageGenerator
         {
             processCtx.Paint(canvas =>
             {
-                ImageGeneratorFunctions.DrawSimpleText(canvas, ColorPalette.NormalFont, 48, "bas",
+                ImageGeneratorFunctions.DrawSimpleText(canvas, ColorPalette.NormalFont, 48, "utage",
                     new PointF(215, 135), HorizontalAlignment.Right, 0.2f, float.MaxValue,
                     ColorPalette.BasicFontColor);
+            });
+        });
+
+        UtageIndicatorImage = new Image<Rgba32>(231, 828, ColorPalette.RemasterColor.ToPixel<Rgba32>());
+        UtageIndicatorImage.Mutate(processCtx =>
+        {
+            processCtx.Paint(canvas =>
+            {
+                ImageGeneratorFunctions.DrawSimpleText(canvas, ColorPalette.NormalFont, 48, "utage",
+                    new PointF(215, 135), HorizontalAlignment.Right, 0.2f, float.MaxValue,
+                    ColorPalette.RemasterFontColor);
             });
         });
     }
@@ -92,11 +104,18 @@ public static class InfoImageGenerator
 
             processCtx.DrawImage(maskImage, new Point(0, 1220), 1f);
 
-            processCtx.DrawImage(BasicIndicatorImage, new Point(0, 1220), 1);
-            processCtx.DrawImage(AdvancedIndicatorImage, new Point(0, 1442), 1);
-            processCtx.DrawImage(ExpertIndicatorImage, new Point(0, 1570), 1);
-            processCtx.DrawImage(MasterIndicatorImage, new Point(0, 1698), 1);
-            processCtx.DrawImage(RemasterIndicatorImage, new Point(0, 1826), 1);
+            if (song.SongType != MaiSongType.Utage)
+            {
+                processCtx.DrawImage(BasicIndicatorImage, new Point(0, 1220), 1);
+                processCtx.DrawImage(AdvancedIndicatorImage, new Point(0, 1442), 1);
+                processCtx.DrawImage(ExpertIndicatorImage, new Point(0, 1570), 1);
+                processCtx.DrawImage(MasterIndicatorImage, new Point(0, 1698), 1);
+                processCtx.DrawImage(RemasterIndicatorImage, new Point(0, 1826), 1);
+            }
+            else
+            {
+                processCtx.DrawImage(UtageIndicatorImage, new Point(0, 1220), 1);
+            }
 
             processCtx.Paint(canvas =>
             {
@@ -352,7 +371,7 @@ public static class InfoImageGenerator
             }
 
             var achievementText = MaiImageGeneratorFunctions.GetAchievementText(playRecord.Score);
-            var rateText = MaiImageGeneratorFunctions.GetRateText(playRecord.Score);
+            var rateText = song.SongType == MaiSongType.Utage ? "0" : MaiImageGeneratorFunctions.GetRateText(playRecord.Score);
 
             var clearStateStringBuilder = new StringBuilder();
             if (playRecord.ClearState != ClearState.Empty)
@@ -414,7 +433,7 @@ public static class InfoImageGenerator
             };
 
             canvas.DrawText(achievementTextOption,
-                $"{achievementText}·{rateText}·{clearStateStringBuilder.ToString().Trim('·')}",
+                $"{achievementText}·{rateText}·{clearStateStringBuilder.ToString().Trim('·')}".Trim('·'),
                 Brushes.Solid(ColorPalette.FontColor), null);
 
             var levelText = MaiImageGeneratorFunctions.GetLevelText(useJp ? chart.JpLevel : chart.CnLevel) ?? "未知";
@@ -438,8 +457,10 @@ public static class InfoImageGenerator
                     }
                 ],
                 Dpi = 96,
-                Origin = new PointF(424, baseTop + 5)
+                Origin = new PointF(430, baseTop + 5)
             };
+            var levelTextLength = TextMeasurer.Measure($"等级 {levelText}",
+                new TextOptions(ColorPalette.RegularFont.CreateFont(32f)) { Dpi = 96 }).Bounds.Width;
             canvas.DrawText(levelTextOption, $"等级 {levelText}",
                 Brushes.Solid(ColorPalette.FontColor), null);
             var ratingText = MaiDataManager.GetRating((useJp ? chart.JpLevel : chart.CnLevel) ?? 0, playRecord.Score)
@@ -464,8 +485,10 @@ public static class InfoImageGenerator
                     }
                 ],
                 Dpi = 96,
-                Origin = new PointF(618, baseTop + 5)
+                Origin = new PointF(455 + levelTextLength, baseTop + 5)
             };
+            var ratingTextLength = TextMeasurer.Measure($"评分 {ratingText}",
+                new TextOptions(ColorPalette.RegularFont.CreateFont(32f)) { Dpi = 96 }).Bounds.Width;
             canvas.DrawText(ratingTextOption, $"评分 {ratingText}",
                 Brushes.Solid(ColorPalette.FontColor), null);
 
@@ -493,7 +516,7 @@ public static class InfoImageGenerator
                         }
                     ],
                     Dpi = 96,
-                    Origin = new PointF(810, baseTop + 5)
+                    Origin = new PointF(480 + levelTextLength + ratingTextLength, baseTop + 5)
                 };
                 canvas.DrawText(playCountTextOption, $"游玩次数 {playCountText}",
                     Brushes.Solid(ColorPalette.FontColor), null);

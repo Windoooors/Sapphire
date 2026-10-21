@@ -3,6 +3,7 @@ using Sapphire.Data.Mai.Dtos;
 using Sapphire.Environments;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
+using SixLabors.ImageSharp.Processing;
 
 namespace Sapphire.ImageGeneration.ImageGenerators;
 
@@ -58,7 +59,12 @@ public static class MaiImageGeneratorFunctions
         if (!File.Exists(coverPath))
             coverPath = Path.Combine(AppContext.BaseDirectory, "Resources", "CoversHd", "0.png");
 
-        return Image.Load<Rgba32>(coverPath);
+        var image = Image.Load<Rgba32>(coverPath);
+
+        if (image.Width != 400 || image.Height != 400)
+            image.Mutate(x => x.Resize(400, 400));
+
+        return image;
     }
 
     public static string GetRateText(uint achievement)

@@ -1,4 +1,5 @@
 using System.Net;
+using System.Net.Http.Json;
 using System.Text.Json;
 using Sapphire.Data.DivingFishMai.Dtos;
 using Serilog;
@@ -14,6 +15,19 @@ public class DivingFishMaiDataManager
 
     public static DivingFishMaiDataManager? Instance { get; private set; }
 
+    public async Task<bool> UploadUserRecordsAsync(DfUserRecordUploadDto[] userRecords, long userId)
+    {
+        var env = ApiOperator.GetEnvironment();
+        
+        var url = $"{env.DivingFishUrl}/api/maimaidxprober/player/update_records";
+
+        var response = await ApiOperator.PostWithCredentials(url, JsonContent.Create(userRecords), userId);
+
+        if (response.statusCode != HttpStatusCode.OK || response.result == null) return false;
+
+        return true;
+    }
+
     public async Task<BindingUrlResponseDto?> GetBindUserUrlAsync(long userId)
     {
         var env = ApiOperator.GetEnvironment();
@@ -24,9 +38,9 @@ public class DivingFishMaiDataManager
         {
             ["client_id"] = env.ClientId,
             ["client_secret"] = env.ClientSecret,
-            ["scope"] = "prober.records.read",
+            ["scope"] = "prober.records.read prober.records.write",
             ["subject_ref"] = userReference,
-            ["binding_label"] = "test"
+            ["binding_label"] = ""
         };
 
         using var requestContent = new FormUrlEncodedContent(requestBody);

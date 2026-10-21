@@ -144,8 +144,7 @@ public class CommandParser(IEnumerable<CommandBase> rootCommands, string[] comma
             if (cmd.DirectCommandHeads.Length > 0 &&
                 cmd.DirectCommandHeads.Any(y => string.Equals(y, headToken, StringComparison.OrdinalIgnoreCase)))
                 return cmd;
-            if (cmd.CommandHeads.Any(y => string.Equals(y, headToken, StringComparison.OrdinalIgnoreCase))) return cmd;
-
+            
             var childMatch = FindDirectCommand(cmd.SubCommands, headToken);
             if (childMatch != null) return childMatch;
         }

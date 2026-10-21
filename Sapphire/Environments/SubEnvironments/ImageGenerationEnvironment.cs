@@ -2,9 +2,9 @@ namespace Sapphire.Environments.SubEnvironments;
 
 public record ImageGenerationEnvironment
 {
-    public string BackgroundColorInHex { get; init; } = "#00486A";
-    public string FontColorInHex { get; init; } = "#FFFFFF";
-    public string MiddleLayerColorInHex { get; init; } = "#000000";
+    public string BackgroundColorInHex { get; init; } = "#DDDDDD";
+    public string FontColorInHex { get; init; } = "#000000";
+    public string MiddleLayerColorInHex { get; init; } = "#FFFFFF";
 
     public string RemasterColorInHex { get; init; } = "#DFD6FB";
     public string MasterColorInHex { get; init; } = "#5A2989";
