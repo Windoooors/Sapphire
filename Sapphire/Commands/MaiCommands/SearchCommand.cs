@@ -54,57 +54,89 @@ public class SearchCommand : MaiCommandBase
         await SendMessage(context, [BuildSearchResultString(searchResult)]);
     }
 
-    public static Func<MaiSongDto, bool> CreateSongNamePredicate(string? value)
+    public static Func<MaiSongDto, bool> CreateSongNamePredicate(
+        string? value)
     {
-        if (value?.Length == 0) return _ => true;
+        var inputKey = SearchHelper.NormalizeCjkString(value ?? "")
+            .ToLowerInvariant();
 
-        var inputKey = SearchHelper.NormalizeCjkString(value ?? "");
+        if (inputKey.Length == 0)
+            return _ => true;
 
-        var searchUtage = inputKey.Length >= 1 &&
-                          (MaiDataManager.Instance?.UtageKanjiToSongs.ContainsKey(inputKey[0]) ?? false);
-
-        MaiSongDto[]? utageKanjiSongs = null;
-        string? originalInputKey = null;
-
-        if (searchUtage)
-        {
-            utageKanjiSongs = MaiDataManager.Instance?.UtageKanjiToSongs[inputKey[0]];
-            originalInputKey = inputKey;
-            inputKey = inputKey.Substring(1);
-        }
-
-        return x => (MaiDataManager.Instance?.SongNameSearchKeys[x].Contains(inputKey.ToLower()) ?? false) &&
-                    ((searchUtage &&
-                      (utageKanjiSongs.Contains(x) ||
-                       MaiDataManager.Instance.SongNameSearchKeys[x].Contains(originalInputKey?.ToLower() ?? ""))) ||
-                     !searchUtage);
+        return x =>
+            MaiDataManager.Instance?.SongNameSearchKeys[x]
+                .Contains(inputKey) ?? false;
     }
 
-    public static Func<MaiSongDto, bool> CreateSongAliasPredicate(string? value)
+    public static Func<MaiSongDto, bool> CreateSongNamePredicate(
+        string? value,
+        char utagePrefix)
     {
-        if (value?.Length == 0) return _ => true;
+        var inputKey = SearchHelper.NormalizeCjkString(value ?? "")
+            .ToLowerInvariant();
 
-        var inputKey = SearchHelper.NormalizeCjkString(value ?? "");
+        if (inputKey.Length == 0)
+            return _ => true;
 
-        var searchUtage = inputKey.Length >= 1 &&
-                          (MaiDataManager.Instance?.UtageKanjiToSongs.ContainsKey(inputKey[0]) ?? false);
-
-        MaiSongDto[]? utageKanjiSongs = null;
-        string? originalInputKey = null;
-
-        if (searchUtage)
+        return x =>
         {
-            utageKanjiSongs = MaiDataManager.Instance?.UtageKanjiToSongs[inputKey[0]];
-            originalInputKey = inputKey;
-            inputKey = inputKey.Substring(1);
-        }
+            var manager = MaiDataManager.Instance;
+            if (manager == null ||
+                !manager.SongNameSearchKeys.TryGetValue(x, out var songKey))
+                return false;
 
-        return x => (MaiDataManager.Instance?.AliasSearchKeys[x]
-                        .Any(y => y.Contains(inputKey.ToLower())) ?? false) &&
-                    ((searchUtage &&
-                      (utageKanjiSongs.Contains(x) ||
-                       MaiDataManager.Instance.AliasSearchKeys[x].Contains(originalInputKey?.ToLower() ?? ""))) ||
-                     !searchUtage);
+            songKey = songKey.ToLowerInvariant();
+
+            // 仅移除候选搜索文本开头的对应 Utage 分类前缀。
+            if (songKey.Length > 0 && songKey[0] == utagePrefix)
+                songKey = songKey[1..];
+
+            return songKey.Contains(inputKey);
+        };
+    }
+
+    public static Func<MaiSongDto, bool> CreateSongAliasPredicate(
+        string? value)
+    {
+        var inputKey = SearchHelper.NormalizeCjkString(value ?? "")
+            .ToLowerInvariant();
+
+        if (inputKey.Length == 0)
+            return _ => true;
+
+        return x =>
+            MaiDataManager.Instance?.AliasSearchKeys[x]
+                .Any(y => y.Contains(inputKey)) ?? false;
+    }
+
+    public static Func<MaiSongDto, bool> CreateSongAliasPredicate(
+        string? value,
+        char utagePrefix)
+    {
+        var inputKey = SearchHelper.NormalizeCjkString(value ?? "")
+            .ToLowerInvariant();
+
+        if (inputKey.Length == 0)
+            return _ => true;
+
+        return x =>
+        {
+            var manager = MaiDataManager.Instance;
+            if (manager == null ||
+                !manager.AliasSearchKeys.TryGetValue(x, out var aliases))
+                return false;
+
+            return aliases.Any(alias =>
+            {
+                alias = alias.ToLowerInvariant();
+
+                // 每个别名分别处理，避免分类前缀参与匹配。
+                if (alias.Length > 0 && alias[0] == utagePrefix)
+                    alias = alias[1..];
+
+                return alias.Contains(inputKey);
+            });
+        };
     }
 
     private static Func<MaiSongDto, bool> CreateArtistPredicate(string? value)

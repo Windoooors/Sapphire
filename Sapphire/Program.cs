@@ -1,6 +1,5 @@
 ﻿using EleCho.GoCqHttpSdk;
 using Sapphire.Commands;
-using Sapphire.Commands.Settings;
 using Sapphire.Data.Settings;
 using Sapphire.Utils;
 using Serilog;
@@ -17,7 +16,7 @@ public static class Program
     private static readonly CommandBase[] GroupCommands =
     [
         new PingCommand(), new MaiCommand(), new SettingsCommand(), new ConfirmationCommand(), new NrConvertCommand(),
-        new GayFactor()
+        new GayFactor(), new GroupMemberCommand()
     ];
 
     private static readonly string[] CommandPrefixes = ["s"];

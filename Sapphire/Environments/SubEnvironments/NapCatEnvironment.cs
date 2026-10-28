@@ -6,6 +6,4 @@ public record NapCatEnvironment
     public int Port { get; init; }
     public string Token { get; init; } = "";
     public int HeartBeatInterval { get; init; }
-
-    public long BotQqId { get; init; }
 }

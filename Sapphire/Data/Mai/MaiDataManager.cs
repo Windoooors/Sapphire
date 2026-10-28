@@ -15,16 +15,10 @@ public class MaiDataManager
 
         context.Database.Migrate();
 
-        Songs = context.MaiSongs
-            .Include(x => x.Charts.OrderBy(y => y.LevelIndex))
-            .OrderBy(x => x.SapphireId)
-            .ToArray();
+        Songs = [];
+        Aliases = [];
 
-        Aliases = context.MaiAliases
-            .Include(x => x.Song)
-            .OrderBy(x => x.AliasId)
-            .ToArray();
-
+        UpdateSongsAndAliases(context);
         Versions = context.MaiVersions.AsNoTracking().OrderBy(x => x.VersionIndex).ToArray();
         Categories = context.MaiCategories.AsNoTracking().OrderBy(x => x.CategoryIndex).ToArray();
 
@@ -34,7 +28,7 @@ public class MaiDataManager
         userContext.Database.Migrate();
     }
 
-    public static MaiDataManager? Instance { get; private set; }
+    public static MaiDataManager? Instance { get; private set; } // Will be set to null when refreshing indexing data.
 
     public MaiSongDto[] Songs { get; private set; }
     public MaiAliasDto[] Aliases { get; private set; }
@@ -140,7 +134,7 @@ public class MaiDataManager
             ]);
 
             SapphireIdToSong.TryAdd(maiSongDto.SapphireId, maiSongDto);
-            
+
             if (maiSongDto.SongId != null)
                 IdToSong.TryAdd(maiSongDto.SongId ?? 0, maiSongDto);
 
@@ -197,16 +191,7 @@ public class MaiDataManager
 
         await context.SaveChangesAsync();
 
-        Songs = context.MaiSongs
-            .Include(x => x.Charts.OrderBy(y => y.LevelIndex))
-            .OrderBy(x => x.SapphireId)
-            .ToArray();
-
-        Aliases = context.MaiAliases
-            .Include(x => x.Song)
-            .OrderBy(x => x.AliasId)
-            .ToArray();
-
+        UpdateSongsAndAliases(context);
         BakeIndexingData();
 
         return true;
@@ -233,6 +218,14 @@ public class MaiDataManager
 
         await context.SaveChangesAsync();
 
+        UpdateSongsAndAliases(context);
+        BakeIndexingData();
+
+        return true;
+    }
+
+    private void UpdateSongsAndAliases(MaiMetadataContext context)
+    {
         Songs = context.MaiSongs
             .Include(x => x.Charts.OrderBy(y => y.LevelIndex))
             .OrderBy(x => x.SapphireId)
@@ -242,10 +235,6 @@ public class MaiDataManager
             .Include(x => x.Song)
             .OrderBy(x => x.AliasId)
             .ToArray();
-
-        BakeIndexingData();
-
-        return true;
     }
 
     public static int GetRating(int chartRating, uint achievement)

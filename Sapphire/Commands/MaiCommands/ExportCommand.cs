@@ -15,10 +15,10 @@ public class ExportCommand : MaiCommandBase
 
         SupportedFlags =
         [
-            new FlagSpec()
+            new FlagSpec
             {
                 ShortName = "-df",
-                LongName = "--diving-fish",
+                LongName = "--diving-fish"
             }
         ];
     }
@@ -30,7 +30,7 @@ public class ExportCommand : MaiCommandBase
             await SendUnknownError(context);
             return;
         }
-        
+
         var userRecordBytes =
             await MaiDataManager.Instance.GetUserPlayRecordsInBytesAsync(context.UserId);
 
@@ -39,7 +39,7 @@ public class ExportCommand : MaiCommandBase
             await SendMessage(context, ["无游玩记录"]);
             return;
         }
-        
+
         var userRecords = MaiDataManager.Instance.DecodeUserPlayRecords(userRecordBytes);
 
         var uploadContents = new List<DfUserRecordUploadDto>();
@@ -48,7 +48,7 @@ public class ExportCommand : MaiCommandBase
         {
             var sapphireId = i / 5 + 1;
             var chartId = i % 5;
-            
+
             var record = userRecords[i];
 
             if (record.ClearState == ClearState.NotPlayed)
@@ -57,14 +57,14 @@ public class ExportCommand : MaiCommandBase
             if (!MaiDataManager.Instance.SapphireIdToSong.TryGetValue(sapphireId, out var song) ||
                 song.Charts.Count - 1 < chartId)
                 continue;
-            
+
             var chart = song.Charts[chartId];
             var result = DfUserRecordUploadDto.ConvertFromMaiPlayRecord(record, chart);
 
             if (result != null)
                 uploadContents.Add(result);
         }
-        
+
         var uploadContentsArray = uploadContents.ToArray();
         if (uploadContentsArray.Length == 0)
         {
@@ -80,11 +80,11 @@ public class ExportCommand : MaiCommandBase
                 [$"{SpEnvironmentHandler.Environment.Sapphire.BotName} 无权更新您的成绩，请发送 \"bind -df\" 指令重新绑定授权后再试"]);
             return;
         }
-        
+
         await SendMessage(context,
             [$"上传了 {uploadContentsArray.Length} 项游玩记录（包括已删除曲目）"]);
     }
-    
+
     protected override async Task ProcessWithArguments(CommandContext commandContext, CqMessagePostContext context)
     {
         if (commandContext.HasFlag("--diving-fish"))
@@ -93,6 +93,7 @@ public class ExportCommand : MaiCommandBase
 
             return;
         }
+
         await SendArgumentError(context);
     }
 }

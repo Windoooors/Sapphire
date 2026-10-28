@@ -1,6 +1,7 @@
 using EleCho.GoCqHttpSdk;
 using EleCho.GoCqHttpSdk.Message;
 using EleCho.GoCqHttpSdk.Post;
+using Sapphire.Environments;
 
 namespace Sapphire.Commands;
 
@@ -15,7 +16,7 @@ public class FlagSpec
 public class CommandContext
 {
     public string? Argument { get; set; }
-
+    
     public Dictionary<string, string> Flags { get; set; } = new(StringComparer.OrdinalIgnoreCase);
 
     public string? GetFlag(string flagName, string? defaultValue = null)
@@ -35,7 +36,7 @@ public abstract class CommandBase
 
     public string[] CommandHeads { get; protected set; } = [];
     public string[] DirectCommandHeads { get; protected set; } = [];
-
+    
     public List<FlagSpec> SupportedFlags { get; protected set; } = [];
 
     public string ActivationSettingsIdentifier { get; protected set; } = "";
@@ -92,6 +93,11 @@ public abstract class CommandBase
     {
         await SendMessage(context, ["参数错误"]);
     }
+    
+    public static async Task SendUnpermittedError(CqMessagePostContext context)
+    {
+        await SendMessage(context, ["您无权执行该命令"]);
+    }
 
     protected static async Task SendMessage(long id, CqMessage message, bool isGroup = true)
     {
@@ -130,13 +136,31 @@ public abstract class CommandBase
         return null;
     }
 
-    protected async Task<string> GetUserName(long userId)
+    protected bool IsBotAdministrator(long qqId)
+    {
+        if (qqId == SpEnvironmentHandler.Environment.Sapphire.AdministratorQqId)
+        {
+            return true;
+        }
+
+        return false;
+    }
+    
+    protected async Task<bool> IsGroupAdministrator(long qqId, CqGroupMessagePostContext groupMessageContext)
     {
         if (Program.BotSessionHandler.Session == null)
-            return "滚木";
+            return false;
+        
+        var info = await Program.BotSessionHandler.Session.GetGroupMemberInformationAsync(groupMessageContext.GroupId, qqId);
+        
+        if (info == null)
+            return false;
+        
+        if (info.Role is CqRole.Admin or CqRole.Owner)
+        {
+            return true;
+        }
 
-        var userInformation = await Program.BotSessionHandler.Session.GetStrangerInformationAsync(userId);
-
-        return userInformation?.Nickname ?? "未知";
+        return false;
     }
 }

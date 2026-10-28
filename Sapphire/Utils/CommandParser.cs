@@ -8,6 +8,16 @@ namespace Sapphire.Utils;
 
 public class CommandParser(IEnumerable<CommandBase> rootCommands, string[] commandPrefixes)
 {
+    private static Dictionary<string, string> _shortcuts = new (StringComparer.OrdinalIgnoreCase)
+    {
+        {"score", "info -s"},
+        {"ap50", "b50 -ap"},
+        {"app50", "b50 -app"},
+        {"fc50", "b50 -fc"},
+        {"fcp50", "b50 -fcp"},
+        {"pc50", "b50 -pc"}
+    };
+    
     public async Task ParseAndExecute(CqMessagePostContext context)
     {
         foreach (var rootCommand in rootCommands) await rootCommand.ReceiveDirectly(context);
@@ -15,8 +25,17 @@ public class CommandParser(IEnumerable<CommandBase> rootCommands, string[] comma
         if (SettingsDataManager.Instance == null)
             return;
 
-        var commandLine = context.RawMessage;
-
+        var commandLine = context.Message.Text;
+        
+        foreach (var keyValuePair in _shortcuts)
+        {
+            if (commandLine.StartsWith(keyValuePair.Key))
+            {
+                commandLine = keyValuePair.Value + commandLine.Substring(keyValuePair.Key.Length);
+                break;
+            }
+        }
+        
         if (string.IsNullOrWhiteSpace(commandLine)) return;
 
         var tokens = Tokenize(commandLine);
@@ -144,7 +163,7 @@ public class CommandParser(IEnumerable<CommandBase> rootCommands, string[] comma
             if (cmd.DirectCommandHeads.Length > 0 &&
                 cmd.DirectCommandHeads.Any(y => string.Equals(y, headToken, StringComparison.OrdinalIgnoreCase)))
                 return cmd;
-            
+
             var childMatch = FindDirectCommand(cmd.SubCommands, headToken);
             if (childMatch != null) return childMatch;
         }

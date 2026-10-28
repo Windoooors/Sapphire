@@ -128,10 +128,15 @@ public class BestListCommand : MaiCommandBase
 
         var userId = context.UserId;
 
-        if (useAssignedUserId && (userIdString == null || !long.TryParse(userIdString, out userId)))
+        if (useAssignedUserId)
         {
-            await SendMessage(context, ["无效的用户码"]);
-            return;
+            if ((userIdString == null || !GroupMemberCommandBase.TryGetUsers(context, userIdString, out var userIds) || userIds == null || userIds.Length > 1))
+            {
+                await SendMessage(context, ["无效的用户码"]);
+                return;
+            }
+
+            userId = userIds[0];
         }
 
         await ProcessBase(context, userId, (i, record, song, chartIndex) =>
@@ -232,7 +237,7 @@ public class BestListCommand : MaiCommandBase
         var queryTime = DateTime.UtcNow - startTime;
         var generationStartTime = DateTime.UtcNow;
 
-        var userName = await GetUserName(userId);
+        var userName = await GroupMemberCommandBase.GetNickname(userId) ?? "未知";
 
         var dataObject = new BestListData
         {

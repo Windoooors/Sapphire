@@ -61,8 +61,8 @@ public record DfUserRecordUploadDto
     {
         if (chart.Song == null) return null;
         if (chart.Song.SongType == MaiSongType.Utage) return null;
-        
-        return new DfUserRecordUploadDto()
+
+        return new DfUserRecordUploadDto
         {
             Achievements = (float)maiPlayRecord.Score / 10000,
             DxScore = maiPlayRecord.DxScore,

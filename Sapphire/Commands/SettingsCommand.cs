@@ -2,7 +2,7 @@ using EleCho.GoCqHttpSdk.Post;
 using Sapphire.Data.Settings;
 using Sapphire.UserSettings;
 
-namespace Sapphire.Commands.Settings;
+namespace Sapphire.Commands;
 
 public class SettingsCommand : CommandBase
 {
@@ -14,6 +14,15 @@ public class SettingsCommand : CommandBase
 
     protected override async Task ProcessWithArguments(CommandContext commandContext, CqMessagePostContext context)
     {
+        if (context is CqGroupMessagePostContext groupMessageContext)
+        {
+            if (!IsBotAdministrator(context.UserId) && !await IsGroupAdministrator(context.UserId, groupMessageContext))
+            {
+                await SendUnpermittedError(context);
+                return;
+            }
+        }
+        
         if (!SettingsItems.DefaultValues.ContainsKey(commandContext.Argument ?? ""))
         {
             await SendMessage(context, ["未找到设置项"]);

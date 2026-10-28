@@ -1,6 +1,5 @@
 using System.Net;
 using System.Net.Http.Headers;
-using System.Net.Http.Json;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -60,7 +59,7 @@ public static class ApiOperator
 
         return (stringResult, response.StatusCode);
     }
-    
+
     public static async Task<(string? result, HttpStatusCode? statusCode)> GetWithCredentials(string url, long userId)
     {
         if (!UserCredentials.TryGetValue(userId, out var userCredential) ||

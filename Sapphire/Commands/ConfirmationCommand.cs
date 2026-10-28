@@ -50,7 +50,7 @@ public class ConfirmationCommand : CommandBase
         };
 
         var messageId = await SendMessage(context,
-            [$"您正在尝试{actionName}，请用户 {targetUserId} 对此条消息回复 “确定” 以确定，回复 “取消” 以取消。"]);
+            [$"您正在尝试{actionName}，请用户 {await GroupMemberCommandBase.GetNickname(targetUserId) ?? "未知"} ({targetUserId}) 对此条消息回复 “确定” 以确定，回复 “取消” 以取消。"]);
 
         if (messageId == null)
         {

@@ -10,7 +10,7 @@ public class AliasCommand : MaiCommandBase
     public AliasCommand()
     {
         CommandHeads = ["alias"];
-        DirectCommandHeads = ["别名"];
+        DirectCommandHeads = ["alias"];
 
         SupportedFlags =
         [
@@ -107,7 +107,7 @@ public class AliasCommand : MaiCommandBase
 
         await ConfirmationCommand.Instance.AddConfirmation(async () =>
             {
-                switch (await MaiDataManager.Instance.TryRemoveAlias((int)aliasId, context.UserId))
+                switch (await MaiDataManager.Instance.TryRemoveAlias((int)aliasId, context.UserId, IsBotAdministrator(context.UserId)))
                 {
                     case true:
                         await SendMessage(context, ["已删除"]);

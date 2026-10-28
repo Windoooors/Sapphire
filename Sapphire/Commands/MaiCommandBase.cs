@@ -4,7 +4,6 @@ using Sapphire.Commands.MaiCommands;
 using Sapphire.Data.DivingFishMai;
 using Sapphire.Data.Mai;
 using Sapphire.Data.Mai.Dtos;
-using Sapphire.Utils;
 
 namespace Sapphire.Commands;
 
@@ -13,127 +12,192 @@ public abstract class MaiCommandBase : CommandBase
     protected static MaiDataManager? DataManager;
     protected static DivingFishMaiDataManager? DivingFishMaiDataManager;
 
-    protected static bool TryGetSongsByString(string key, out MaiSongDto[]? songs)
+    protected static bool TryGetSongsByString(
+        string key,
+        out MaiSongDto[]? songs)
     {
-        if (MaiDataManager.Instance == null)
-        {
-            songs = null;
+        songs = null;
+
+        var manager = MaiDataManager.Instance;
+
+        if (manager == null)
             return false;
-        }
 
-        var loweredKey = key.ToLower();
-
-        var resultList = new List<MaiSongDto>();
-
-        var searchId = loweredKey.StartsWith("id");
-        var searchSid = loweredKey.StartsWith("sid");
-
-        var idString = loweredKey.Replace("sid", "").Replace("id", "").Trim();
-
-        if (int.TryParse(idString, out var id))
+        if (string.IsNullOrWhiteSpace(key))
         {
-            if (searchId)
-            {
-                MaiDataManager.Instance.IdToSong.TryGetValue(id, out var song);
-                if (song != null)
-                    resultList.Add(song);
-            }
-
-            if (searchSid)
-            {
-                MaiDataManager.Instance.SapphireIdToSong.TryGetValue(id, out var song);
-                if (song != null)
-                    resultList.Add(song);
-            }
-
-            songs = resultList.ToHashSet().ToArray();
+            songs = Array.Empty<MaiSongDto>();
             return true;
         }
 
-        /* 在锁定搜索范围为宴谱之前，先搜索普通歌曲，以避免类似 "xx" 只能搜到宴谱的情况 */
+        var loweredKey = key.ToLowerInvariant();
 
-        var searchDx = loweredKey.StartsWith("dx");
-        if (searchDx)
-            loweredKey = loweredKey.Substring(2, loweredKey.Length - 2);
-        var searchStd = loweredKey.StartsWith("标");
-        if (searchStd)
-            loweredKey = loweredKey.Substring(1, loweredKey.Length - 1);
+        var searchSid = loweredKey.StartsWith(
+            "sid", StringComparison.Ordinal);
 
-        if (MaiDataManager.Instance.AliasToSongs.TryGetValue(loweredKey, out var songsByAliasWithoutUtageConsider))
-            resultList.AddRange(songsByAliasWithoutUtageConsider);
-        if (MaiDataManager.Instance.SongNameToSongs.TryGetValue(loweredKey, out var songsByTitleWithoutUtageConsider))
-            resultList.AddRange(songsByTitleWithoutUtageConsider);
+        var searchId = !searchSid && loweredKey.StartsWith(
+            "id", StringComparison.Ordinal);
 
-        if (searchDx)
+        if (searchId || searchSid)
         {
-            var groupResult = resultList.GroupBy(x => x.SongName + x.ArtistName).Where(x => x.Count() == 1);
+            var idString = loweredKey[
+                (searchSid ? 3 : 2)..].Trim();
 
-            foreach (var group in groupResult)
-            foreach (var song in group)
-                resultList.Remove(song);
+            if (int.TryParse(idString, out var id))
+            {
+                var result = new List<MaiSongDto>();
 
-            resultList.RemoveAll(x => x.SongType != MaiSongType.Dx);
+                if (searchId &&
+                    manager.IdToSong.TryGetValue(id, out var idSong))
+                    result.Add(idSong);
+
+                if (searchSid &&
+                    manager.SapphireIdToSong.TryGetValue(id, out var sidSong))
+                    result.Add(sidSong);
+
+                songs = result.Distinct().ToArray();
+                return true;
+            }
         }
 
-        if (searchStd)
+        // 精确匹配
+        List<MaiSongDto> MatchExact(string searchKey)
         {
-            var groupResult = resultList.GroupBy(x => x.SongName + x.ArtistName).Where(x => x.Count() == 1);
+            var result = new List<MaiSongDto>();
 
-            foreach (var group in groupResult)
-            foreach (var song in group)
-                resultList.Remove(song);
+            if (manager.SongNameToSongs.TryGetValue(
+                    searchKey, out var nameSongs))
+                result.AddRange(nameSongs);
 
-            resultList.RemoveAll(x => x.SongType != MaiSongType.Std);
+            if (manager.AliasToSongs.TryGetValue(
+                    searchKey, out var aliasSongs))
+                result.AddRange(aliasSongs);
+
+            return result.Distinct().ToList();
         }
 
-        if (resultList.Count != 0)
+        // 模糊匹配
+
+        List<MaiSongDto> BlurredMatch(
+            string searchKey,
+            IEnumerable<MaiSongDto> candidates,
+            char? utagePrefix = null)
         {
-            songs = resultList.ToHashSet().ToArray();
+            Func<MaiSongDto, bool> namePredicate;
+            Func<MaiSongDto, bool> aliasPredicate;
+
+            if (utagePrefix.HasValue)
+            {
+                namePredicate =
+                    SearchCommand.CreateSongNamePredicate(
+                        searchKey, utagePrefix.Value);
+
+                aliasPredicate =
+                    SearchCommand.CreateSongAliasPredicate(
+                        searchKey, utagePrefix.Value);
+            }
+            else
+            {
+                namePredicate =
+                    SearchCommand.CreateSongNamePredicate(searchKey);
+
+                aliasPredicate =
+                    SearchCommand.CreateSongAliasPredicate(searchKey);
+            }
+
+            return candidates
+                .Where(x => namePredicate(x) || aliasPredicate(x))
+                .Distinct()
+                .ToList();
+        }
+
+        // 种类分类查询
+
+        var searchDx = loweredKey.StartsWith(
+            "dx", StringComparison.Ordinal);
+
+        var searchStd = loweredKey.StartsWith(
+            "标", StringComparison.Ordinal);
+
+        if (searchDx || searchStd)
+        {
+            var searchKey = loweredKey[
+                (searchDx ? 2 : 1)..].Trim();
+
+            var targetType = searchDx
+                ? MaiSongType.Dx
+                : MaiSongType.Std;
+
+            var result = MatchExact(searchKey)
+                .Where(x => x.SongType == targetType)
+                .ToList();
+
+            if (result.Count == 0)
+                result = BlurredMatch(
+                        searchKey,
+                        manager.Songs)
+                    .Where(x => x.SongType == targetType)
+                    .ToList();
+
+            songs = result.ToArray();
             return true;
         }
 
-        /* 标准化 key，找到指定的宴谱汉字及搜索范围 */
+        // 普通歌曲匹配
+        var regularSongs = manager.Songs.Where(x => x.SongType != MaiSongType.Utage);
 
-        var normalizedKey = SearchHelper.NormalizeCjkString(loweredKey);
+        var regularResult = MatchExact(loweredKey)
+            .Where(x => x.SongType != MaiSongType.Utage)
+            .ToList();
 
-        var searchUtage = normalizedKey.Length >= 1 &&
-                          MaiDataManager.Instance.UtageKanjiToSongs.ContainsKey(normalizedKey[0]
-                          );
-        MaiSongDto[]? utageKanjiSongs = null;
-        if (searchUtage)
+        if (regularResult.Count > 0)
         {
-            loweredKey = loweredKey.Substring(1, loweredKey.Length - 1);
-            utageKanjiSongs = MaiDataManager.Instance.UtageKanjiToSongs[normalizedKey[0]];
+            songs = regularResult.ToArray();
+            return true;
         }
 
-        if (MaiDataManager.Instance.AliasToSongs.TryGetValue(loweredKey, out var songsByAlias))
-            resultList.AddRange(songsByAlias);
-        if (MaiDataManager.Instance.SongNameToSongs.TryGetValue(loweredKey, out var songsByTitle))
-            resultList.AddRange(songsByTitle);
+        // 模糊匹配
+        regularResult = BlurredMatch(
+            loweredKey,
+            regularSongs);
 
-
-        /* 如果没有结果，则开始模糊匹配 */
-        if (resultList.Count == 0)
+        if (regularResult.Count > 0)
         {
-            var songNamePredicate = SearchCommand.CreateSongNamePredicate(loweredKey);
-            var songAliasPredicate = SearchCommand.CreateSongAliasPredicate(loweredKey);
-
-            resultList.AddRange(
-                MaiDataManager.Instance.Songs.Where(x => songAliasPredicate(x) || songNamePredicate(x)));
+            songs = regularResult.ToArray();
+            return true;
         }
 
-        if (!searchUtage)
+        // Utage 前缀匹配
+
+        var utagePrefix = loweredKey[0];
+
+        if (manager.UtageKanjiToSongs.TryGetValue(
+                utagePrefix, out var utageSongs))
         {
-            resultList.RemoveAll(x => x.SongType == MaiSongType.Utage);
-        }
-        else
-        {
-            resultList.RemoveAll(x => x.SongType == MaiSongType.Dx);
-            resultList.RemoveAll(x => x.SongType == MaiSongType.Std);
-            resultList.RemoveAll(x => !utageKanjiSongs.Contains(x));
+            var searchKey = loweredKey[1..];
+            var allowedSongs = utageSongs.ToHashSet();
+
+            // 精确匹配
+            var utageResult = MatchExact(searchKey)
+                .Where(allowedSongs.Contains)
+                .ToList();
+
+            if (utageResult.Count > 0)
+            {
+                songs = utageResult.ToArray();
+                return true;
+            }
+
+            // 模糊匹配
+            utageResult = BlurredMatch(
+                searchKey,
+                utageSongs,
+                utagePrefix);
+
+            songs = utageResult.ToArray();
+            return true;
         }
 
-        songs = resultList.ToHashSet().ToArray();
+        songs = Array.Empty<MaiSongDto>();
         return true;
     }
 

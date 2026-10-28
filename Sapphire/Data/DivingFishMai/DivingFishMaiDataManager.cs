@@ -18,7 +18,7 @@ public class DivingFishMaiDataManager
     public async Task<bool> UploadUserRecordsAsync(DfUserRecordUploadDto[] userRecords, long userId)
     {
         var env = ApiOperator.GetEnvironment();
-        
+
         var url = $"{env.DivingFishUrl}/api/maimaidxprober/player/update_records";
 
         var response = await ApiOperator.PostWithCredentials(url, JsonContent.Create(userRecords), userId);

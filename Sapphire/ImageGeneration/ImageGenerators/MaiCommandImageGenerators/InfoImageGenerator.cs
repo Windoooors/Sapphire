@@ -75,7 +75,7 @@ public static class InfoImageGenerator
         {
             processCtx.Paint(canvas =>
             {
-                ImageGeneratorFunctions.DrawSimpleText(canvas, ColorPalette.NormalFont, 48, "utage",
+                ImageGeneratorFunctions.DrawSimpleText(canvas, ColorPalette.NormalFont, 48, "bas",
                     new PointF(215, 135), HorizontalAlignment.Right, 0.2f, float.MaxValue,
                     ColorPalette.BasicFontColor);
             });
@@ -371,7 +371,9 @@ public static class InfoImageGenerator
             }
 
             var achievementText = MaiImageGeneratorFunctions.GetAchievementText(playRecord.Score);
-            var rateText = song.SongType == MaiSongType.Utage ? "0" : MaiImageGeneratorFunctions.GetRateText(playRecord.Score);
+            var rateText = song.SongType == MaiSongType.Utage
+                ? "0"
+                : MaiImageGeneratorFunctions.GetRateText(playRecord.Score);
 
             var clearStateStringBuilder = new StringBuilder();
             if (playRecord.ClearState != ClearState.Empty)

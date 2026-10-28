@@ -22,6 +22,12 @@ public class NrConvertCommand : CommandBase // NR stands for Number Representati
             {
                 LongName = "--length",
                 ShortName = "-l"
+            },
+            new FlagSpec
+            {
+                LongName = "--hex",
+                ShortName = "-h",
+                TakesValue = false
             }
         ];
     }
@@ -30,6 +36,8 @@ public class NrConvertCommand : CommandBase // NR stands for Number Representati
     {
         var numberString = commandContext.GetFlag("--complement");
         var lengthString = commandContext.GetFlag("--length", "8");
+
+        var format = commandContext.HasFlag("--hex") ? "X" : "B";
 
 
         if (commandContext.HasFlag("--complement"))
@@ -40,7 +48,7 @@ public class NrConvertCommand : CommandBase // NR stands for Number Representati
                 {
                     if (sbyte.TryParse(numberString, out var number))
                     {
-                        await SendMessage(context, [number.ToString("B")]);
+                        await SendMessage(context, [number.ToString(format)]);
                         return;
                     }
 
@@ -50,7 +58,7 @@ public class NrConvertCommand : CommandBase // NR stands for Number Representati
                 {
                     if (short.TryParse(numberString, out var number))
                     {
-                        await SendMessage(context, [number.ToString("B")]);
+                        await SendMessage(context, [number.ToString(format)]);
                         return;
                     }
 
@@ -60,7 +68,7 @@ public class NrConvertCommand : CommandBase // NR stands for Number Representati
                 {
                     if (int.TryParse(numberString, out var number))
                     {
-                        await SendMessage(context, [number.ToString("B")]);
+                        await SendMessage(context, [number.ToString(format)]);
                         return;
                     }
 
@@ -70,7 +78,7 @@ public class NrConvertCommand : CommandBase // NR stands for Number Representati
                 {
                     if (long.TryParse(numberString, out var number))
                     {
-                        await SendMessage(context, [number.ToString("B")]);
+                        await SendMessage(context, [number.ToString(format)]);
                         return;
                     }
 
@@ -80,7 +88,7 @@ public class NrConvertCommand : CommandBase // NR stands for Number Representati
                 {
                     if (Int128.TryParse(numberString, out var number))
                     {
-                        await SendMessage(context, [number.ToString("B")]);
+                        await SendMessage(context, [number.ToString(format)]);
                         return;
                     }
 

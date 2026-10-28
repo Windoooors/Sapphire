@@ -8,6 +8,7 @@ public class BindCommand : MaiCommandBase
     public BindCommand()
     {
         CommandHeads = ["bind"];
+        DirectCommandHeads = ["bind"];
         SupportedFlags = new List<FlagSpec>
         {
             new()
