@@ -130,7 +130,8 @@ public class BestListCommand : MaiCommandBase
 
         if (useAssignedUserId)
         {
-            if ((userIdString == null || !GroupMemberCommandBase.TryGetUsers(context, userIdString, out var userIds) || userIds == null || userIds.Length > 1))
+            if (userIdString == null || !GroupMemberCommandBase.TryGetUsers(context, userIdString, out var userIds) ||
+                userIds == null || userIds.Length > 1)
             {
                 await SendMessage(context, ["无效的用户码"]);
                 return;

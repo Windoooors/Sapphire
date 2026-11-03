@@ -25,7 +25,7 @@ public class GroupMemberAliasCommand : GroupMemberCommandBase
                 TakesValue = true
             }
         };
-        
+
         ActivationSettingsIdentifier = "group_member_alias.enabled";
     }
 
@@ -33,17 +33,26 @@ public class GroupMemberAliasCommand : GroupMemberCommandBase
     {
         if (!TryGetUsers(context, commandContext.Argument ?? "", out var userIds) || userIds == null)
         {
-            await SendMessage(context, ["未找到该用户"]);
+            await SendUnknownError(context);
             return;
         }
         
+        if (userIds.Length == 0)
+        {
+            await SendMemberNotFoundError(context);
+            return;
+        }
+
         if (userIds.Length > 1)
         {
             await SendMessage(context,
-                [await BuildMemberListString(userIds, $"s group-member alias {userIds[0]}", "查询列表中第一位用户的昵称", context.GroupId)]);
+            [
+                await BuildMemberListString(userIds, $"s group-member alias {userIds[0]}", "查询列表中第一位用户的昵称",
+                    context.GroupId)
+            ]);
             return;
         }
-        
+
         var userId = userIds[0];
         if (!(GroupMemberDataManager.Instance?.UserIdToAliases.TryGetValue((context.GroupId, userId),
                 out var aliases) ?? false))
@@ -52,18 +61,15 @@ public class GroupMemberAliasCommand : GroupMemberCommandBase
                 [$"用户 {await GetNickname(userId) ?? "未知"} ({userId}) 没有昵称"]);
             return;
         }
-        
+
         var sb = new StringBuilder($"用户 {await GetNickname(userId) ?? "未知"} ({userId}) 有如下昵称：\n");
-        
-        foreach (var alias in aliases)
-        {
-            sb.AppendLine($"AID{alias.MemberAliasId}. {alias.Alias}");
-        }
-        
+
+        foreach (var alias in aliases) sb.AppendLine($"AID{alias.MemberAliasId}. {alias.Alias}");
+
         await SendMessage(context,
             [sb.ToString()]);
     }
-    
+
     private async Task AddAlias(CommandContext commandContext, CqGroupMessagePostContext context)
     {
         var aliasToBeAdded = commandContext.GetFlag("--add")?.Trim();
@@ -74,7 +80,7 @@ public class GroupMemberAliasCommand : GroupMemberCommandBase
         }
 
         var userString = commandContext.Argument;
-        if (GroupMemberDataManager.Instance == null || !TryGetUsers(context,userString ?? "", out var users) ||
+        if (GroupMemberDataManager.Instance == null || !TryGetUsers(context, userString ?? "", out var users) ||
             users == null || ConfirmationCommand.Instance == null)
         {
             await SendUnknownError(context);
@@ -83,15 +89,15 @@ public class GroupMemberAliasCommand : GroupMemberCommandBase
 
         if (users.Length == 0)
         {
-            await SendMessage(context, ["未找到匹配的用户"]);
+            await SendMemberNotFoundError(context);
             return;
         }
-        
+
         var nickname = await GetNickname(users[0], context.GroupId);
 
         if (nickname == null)
         {
-            await SendMessage(context, ["未找到匹配的用户"]);
+            await SendMemberNotFoundError(context);
             return;
         }
 
@@ -108,7 +114,7 @@ public class GroupMemberAliasCommand : GroupMemberCommandBase
 
         await ConfirmationCommand.Instance.AddConfirmation(async () =>
             {
-                switch (await GroupMemberDataManager.Instance.TryAddAlias(users[0], context.GroupId ,aliasToBeAdded))
+                switch (await GroupMemberDataManager.Instance.TryAddAlias(users[0], context.GroupId, aliasToBeAdded))
                 {
                     case true:
                         await SendMessage(context, ["已添加"]);
@@ -120,7 +126,7 @@ public class GroupMemberAliasCommand : GroupMemberCommandBase
             }, async () => { await SendMessage(context, ["已取消"]); },
             $"为用户 {nickname} ({users[0]}) 添加别名 \"{aliasToBeAdded}\"", context, users[0]);
     }
-    
+
     private async Task RemoveAlias(CommandContext commandContext, CqGroupMessagePostContext context)
     {
         var aliasToBeDeleted = commandContext.GetFlag("--remove")?.Trim();
@@ -149,7 +155,8 @@ public class GroupMemberAliasCommand : GroupMemberCommandBase
 
         await ConfirmationCommand.Instance.AddConfirmation(async () =>
             {
-                switch (await GroupMemberDataManager.Instance.TryRemoveAlias((int)aliasId, context.UserId, IsBotAdministrator(context.UserId) || await IsGroupAdministrator(context.UserId, context)))
+                switch (await GroupMemberDataManager.Instance.TryRemoveAlias((int)aliasId, context.UserId,
+                            IsBotAdministrator(context.UserId) || await IsGroupAdministrator(context.UserId, context)))
                 {
                     case true:
                         await SendMessage(context, ["已删除"]);
@@ -159,7 +166,8 @@ public class GroupMemberAliasCommand : GroupMemberCommandBase
                         break;
                 }
             }, async () => { await SendMessage(context, ["已取消"]); },
-            $"为用户 {await GetNickname(alias.UserId, context.GroupId) ?? "未知"} ({alias.UserId}) 删除别名 \"{alias.Alias}\"", context, context.UserId);
+            $"为用户 {await GetNickname(alias.UserId, context.GroupId) ?? "未知"} ({alias.UserId}) 删除别名 \"{alias.Alias}\"",
+            context, context.UserId);
     }
 
     protected override async Task ProcessWithArguments(CommandContext commandContext, CqMessagePostContext context)
@@ -169,7 +177,7 @@ public class GroupMemberAliasCommand : GroupMemberCommandBase
             await SendWrongContextMessage(context);
             return;
         }
-        
+
         if (commandContext.HasFlag("--add"))
         {
             await AddAlias(commandContext, groupMessageContext);

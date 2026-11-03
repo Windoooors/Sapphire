@@ -50,7 +50,7 @@ public class AliasCommand : MaiCommandBase
 
         if (songs.Length == 0)
         {
-            await SendMessage(context, ["未找到匹配的乐曲"]);
+            await SendSongNotFoundError(context);
             return;
         }
 
@@ -107,7 +107,8 @@ public class AliasCommand : MaiCommandBase
 
         await ConfirmationCommand.Instance.AddConfirmation(async () =>
             {
-                switch (await MaiDataManager.Instance.TryRemoveAlias((int)aliasId, context.UserId, IsBotAdministrator(context.UserId)))
+                switch (await MaiDataManager.Instance.TryRemoveAlias((int)aliasId, context.UserId,
+                            IsBotAdministrator(context.UserId)))
                 {
                     case true:
                         await SendMessage(context, ["已删除"]);

@@ -13,6 +13,12 @@ public abstract class GroupMemberCommandBase : CommandBase
 
     public static bool TryGetUsers(CqMessagePostContext context, string key, out long[]? userIds)
     {
+        if (GroupMemberDataManager.Instance == null)
+        {
+            userIds = null;
+            return false;
+        }
+        
         if (context is CqGroupMessagePostContext groupContext)
         {
             var result = MatchExact(key);
@@ -21,11 +27,11 @@ public abstract class GroupMemberCommandBase : CommandBase
                 userIds = result.ToArray();
                 return true;
             }
-            
+
             var predicate = GroupMemberSearchCommand.CreateMemberAliasPredicate(key, groupContext.GroupId);
             result.AddRange(
-                GroupMemberDataManager.Instance?.AliasedUserIds.Where(predicate).Select(x => x.userId) ?? []);
-            
+                GroupMemberDataManager.Instance.AliasedUserIds.Where(predicate).Select(x => x.userId) ?? []);
+
             if (result.Count > 0)
             {
                 userIds = result.ToArray();
@@ -33,15 +39,15 @@ public abstract class GroupMemberCommandBase : CommandBase
             }
         }
 
-        if (long.TryParse(key, out long id))
+        if (long.TryParse(key, out var id))
         {
             userIds = [id];
             return true;
         }
 
-        userIds = null;
-        return false;
-        
+        userIds = [];
+        return true;
+
         List<long> MatchExact(string searchKey)
         {
             var result = new List<long>();
@@ -62,7 +68,8 @@ public abstract class GroupMemberCommandBase : CommandBase
 
         var memberInformation = await Program.BotSessionHandler.Session.GetGroupMemberInformationAsync(groupId, id);
 
-        if (memberInformation == null || memberInformation.Status == CqActionStatus.Failed) return null;
+        if (memberInformation == null || memberInformation.Status == CqActionStatus.Failed)
+            return await GetNickname(id);
 
         var nickname = memberInformation.GroupNickname == ""
             ? memberInformation.Nickname
@@ -82,8 +89,14 @@ public abstract class GroupMemberCommandBase : CommandBase
         var nickname = memberInformation.Nickname;
         return nickname;
     }
-    
-    protected static async Task<string> BuildMemberListString(IEnumerable<long> users, string commandHint, string hint, long groupId)
+
+    protected static async Task SendMemberNotFoundError(CqMessagePostContext context)
+    {
+        await SendMessage(context, ["未找到匹配的用户"]);
+    }
+
+    protected static async Task<string> BuildMemberListString(IEnumerable<long> users, string commandHint, string hint,
+        long groupId)
     {
         var userSet = users.ToHashSet();
 

@@ -96,25 +96,25 @@ public static class InfoImageGenerator
     public static async Task<string> Generate(MaiSongDto song, MaiPlayRecord[]? records, long? userId, string? userName,
         bool? useJp)
     {
-        using var backgroundImage = new Image<Rgba32>(1440, 2048, ColorPalette.BackgroundColor.ToPixel<Rgba32>());
+        using var backgroundImage = new Image<Rgba32>(1440, 2180, ColorPalette.BackgroundColor.ToPixel<Rgba32>());
         backgroundImage.Mutate(processCtx =>
         {
             using var maskImage = new Image<Rgba32>(1440, 828,
                 ColorPalette.GetColorWithNewTransparency(ColorPalette.MiddleLayerColor, 0.2f).ToPixel<Rgba32>());
 
-            processCtx.DrawImage(maskImage, new Point(0, 1220), 1f);
+            processCtx.DrawImage(maskImage, new Point(0, 1220 + 132), 1f);
 
             if (song.SongType != MaiSongType.Utage)
             {
-                processCtx.DrawImage(BasicIndicatorImage, new Point(0, 1220), 1);
-                processCtx.DrawImage(AdvancedIndicatorImage, new Point(0, 1442), 1);
-                processCtx.DrawImage(ExpertIndicatorImage, new Point(0, 1570), 1);
-                processCtx.DrawImage(MasterIndicatorImage, new Point(0, 1698), 1);
-                processCtx.DrawImage(RemasterIndicatorImage, new Point(0, 1826), 1);
+                processCtx.DrawImage(BasicIndicatorImage, new Point(0, 1220 + 132), 1);
+                processCtx.DrawImage(AdvancedIndicatorImage, new Point(0, 1442 + 132), 1);
+                processCtx.DrawImage(ExpertIndicatorImage, new Point(0, 1570 + 132), 1);
+                processCtx.DrawImage(MasterIndicatorImage, new Point(0, 1698 + 132), 1);
+                processCtx.DrawImage(RemasterIndicatorImage, new Point(0, 1826 + 132), 1);
             }
             else
             {
-                processCtx.DrawImage(UtageIndicatorImage, new Point(0, 1220), 1);
+                processCtx.DrawImage(UtageIndicatorImage, new Point(0, 1220 + 132), 1);
             }
 
             processCtx.Paint(canvas =>
@@ -143,7 +143,7 @@ public static class InfoImageGenerator
 
                 var watermarkTextOptions = new RichTextOptions(ColorPalette.RegularFont.CreateFont(36f))
                 {
-                    Origin = new PointF(1334.7f, 1073.2f),
+                    Origin = new PointF(1334.7f, 1205.2f),
                     Dpi = 96f,
                     FallbackFontFamilies = [ColorPalette.FallbackFont, ColorPalette.EmojiFont],
                     MaxLines = 2,
@@ -256,8 +256,17 @@ public static class InfoImageGenerator
                     new PointF(527.7f, 613.9f),
                     HorizontalAlignment.Left, 1, 780);
 
+                ImageGeneratorFunctions.DrawSimpleText(canvas, ColorPalette.NormalFont, 36f, "BPM",
+                    new PointF(102f, 730.8f),
+                    HorizontalAlignment.Left, 0.5f);
+
+                ImageGeneratorFunctions.DrawSimpleText(canvas, ColorPalette.RegularFont, 36f,
+                    song.SongBpm?.ToString("D") ?? "未知",
+                    new PointF(102f, 784.6f),
+                    HorizontalAlignment.Left);
+
                 ImageGeneratorFunctions.DrawSimpleText(canvas, ColorPalette.NormalFont, 36f, "分类",
-                    new PointF(102f, 717.8f),
+                    new PointF(102f, 717.8f + 132),
                     HorizontalAlignment.Left, 0.5f);
 
                 var categories = MaiDataManager.Instance?.Categories;
@@ -266,11 +275,11 @@ public static class InfoImageGenerator
                     : categories[song.CategoryIndex ?? 0].Name ?? "未知";
 
                 ImageGeneratorFunctions.DrawSimpleText(canvas, ColorPalette.RegularFont, 36f, categoryName,
-                    new PointF(102f, 774.9f),
+                    new PointF(102f, 774.9f + 132),
                     HorizontalAlignment.Left);
 
                 ImageGeneratorFunctions.DrawSimpleText(canvas, ColorPalette.NormalFont, 36f, "登场版本",
-                    new PointF(102f, 837.7f),
+                    new PointF(102f, 837.7f + 132),
                     HorizontalAlignment.Left, 0.5f);
 
                 var versionStringBuilder = new StringBuilder();
@@ -288,11 +297,11 @@ public static class InfoImageGenerator
 
                 ImageGeneratorFunctions.DrawSimpleText(canvas, ColorPalette.RegularFont, 36f,
                     versionStringBuilder.ToString().Trim('·'),
-                    new PointF(102f, 888.5f),
+                    new PointF(102f, 888.5f + 132),
                     HorizontalAlignment.Left);
 
                 ImageGeneratorFunctions.DrawSimpleText(canvas, ColorPalette.NormalFont, 36f, "可玩地区",
-                    new PointF(102f, 957.1f),
+                    new PointF(102f, 957.1f + 132),
                     HorizontalAlignment.Left, 0.5f);
                 var availabilityStringBuilder = new StringBuilder();
                 if (song.AvailableInCn ?? false)
@@ -305,15 +314,15 @@ public static class InfoImageGenerator
                     availabilityStringBuilder.Append("·USA");
                 ImageGeneratorFunctions.DrawSimpleText(canvas, ColorPalette.RegularFont, 36f,
                     availabilityStringBuilder.ToString().Trim('·'),
-                    new PointF(102f, 1010.4f),
+                    new PointF(102f, 1010.4f + 132),
                     HorizontalAlignment.Left);
 
                 ImageGeneratorFunctions.DrawSimpleText(canvas, ColorPalette.NormalFont, 36f, "登场日期（JP）",
-                    new PointF(102f, 1073.2f),
+                    new PointF(102f, 1073.2f + 132),
                     HorizontalAlignment.Left, 0.5f);
                 ImageGeneratorFunctions.DrawSimpleText(canvas, ColorPalette.RegularFont, 36f,
                     song.ReleaseDate.ToString() ?? "未知",
-                    new PointF(102f, 1124.8f),
+                    new PointF(102f, 1124.8f + 132),
                     HorizontalAlignment.Left);
 
                 if (records != null)
@@ -343,7 +352,7 @@ public static class InfoImageGenerator
 
     private static void DrawPlayRecord(DrawingCanvas canvas, MaiSongDto song, MaiPlayRecord[] record, bool useJp)
     {
-        var baseTop = 1331;
+        var baseTop = 1331 + 132;
         var baseLeft = 279;
         var baseRight = 1324;
 
@@ -548,7 +557,7 @@ public static class InfoImageGenerator
 
     private static void DrawChartInformation(DrawingCanvas canvas, MaiSongDto song)
     {
-        var baseTop = 1331;
+        var baseTop = 1331 + 132;
         var baseLeft = 279;
         var baseRight = 1324;
 

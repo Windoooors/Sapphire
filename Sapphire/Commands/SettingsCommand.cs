@@ -15,14 +15,12 @@ public class SettingsCommand : CommandBase
     protected override async Task ProcessWithArguments(CommandContext commandContext, CqMessagePostContext context)
     {
         if (context is CqGroupMessagePostContext groupMessageContext)
-        {
             if (!IsBotAdministrator(context.UserId) && !await IsGroupAdministrator(context.UserId, groupMessageContext))
             {
                 await SendUnpermittedError(context);
                 return;
             }
-        }
-        
+
         if (!SettingsItems.DefaultValues.ContainsKey(commandContext.Argument ?? ""))
         {
             await SendMessage(context, ["未找到设置项"]);

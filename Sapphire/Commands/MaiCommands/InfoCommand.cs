@@ -15,7 +15,7 @@ public class InfoCommand : MaiCommandBase
         CommandHeads = ["info"];
 
         ActivationSettingsIdentifier = "mai_info.enabled";
-        
+
         SupportedFlags =
         [
             new FlagSpec
@@ -55,9 +55,15 @@ public class InfoCommand : MaiCommandBase
             return;
         }
 
-        if (!TryGetSongsByString(commandContext.Argument, out var songs) || songs == null || songs.Length == 0)
+        if (!TryGetSongsByString(commandContext.Argument, out var songs) || songs == null)
         {
-            await SendMessage(context, ["未找到匹配的乐曲"]);
+            await SendUnknownError(context);
+            return;
+        }
+
+        if (songs.Length == 0)
+        {
+            await SendSongNotFoundError(context);
             return;
         }
 
@@ -79,7 +85,9 @@ public class InfoCommand : MaiCommandBase
             var userId = context.UserId;
             if (useAssignedUserId)
             {
-                if ((userIdString == null || !GroupMemberCommandBase.TryGetUsers(context, userIdString, out var userIds) || userIds == null || userIds.Length > 1))
+                if (userIdString == null ||
+                    !GroupMemberCommandBase.TryGetUsers(context, userIdString, out var userIds) || userIds == null ||
+                    userIds.Length > 1)
                 {
                     await SendMessage(context, ["无效的用户码"]);
                     return;
@@ -87,7 +95,7 @@ public class InfoCommand : MaiCommandBase
 
                 userId = userIds[0];
             }
-            
+
             var userRecordBytes =
                 await MaiDataManager.Instance.GetUserPlayRecordsInBytesAsync(
                     useAssignedUserId ? userId : context.UserId);

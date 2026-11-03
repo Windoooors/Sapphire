@@ -11,7 +11,7 @@ public class GroupMemberSearchCommand : GroupMemberCommandBase
     {
         CommandHeads = ["search"];
         DirectCommandHeads = ["member-search", "msearch"];
-        
+
         ActivationSettingsIdentifier = "group_member_search.enabled";
     }
 
@@ -58,14 +58,15 @@ public class GroupMemberSearchCommand : GroupMemberCommandBase
 
         var count = idSet.Count;
 
-        if (count == 0) return "未找到符合条件的用户";
+        if (count == 0) return "未搜索到符合条件的用户";
 
         if (count > 50) return "结果过多，请缩小查询范围";
 
         var stringBuilder = new StringBuilder("找到了如下用户：\n");
 
         foreach (var valueTuple in idSet)
-            stringBuilder.AppendLine($"{await GetNickname(valueTuple.userId, valueTuple.groupId)} ({valueTuple.userId})");
+            stringBuilder.AppendLine(
+                $"{await GetNickname(valueTuple.userId, valueTuple.groupId)} ({valueTuple.userId})");
 
         return stringBuilder.ToString().Trim();
     }

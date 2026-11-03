@@ -25,7 +25,7 @@ public abstract class MaiCommandBase : CommandBase
 
         if (string.IsNullOrWhiteSpace(key))
         {
-            songs = Array.Empty<MaiSongDto>();
+            songs = [];
             return true;
         }
 
@@ -225,6 +225,11 @@ public abstract class MaiCommandBase : CommandBase
         stringBuilder.AppendLine($"请发送指令 \"{commandHint}\" 以{hint}");
 
         return stringBuilder.ToString().Trim();
+    }
+
+    protected static async Task SendSongNotFoundError(CqMessagePostContext context)
+    {
+        await SendMessage(context, ["未找到匹配的乐曲"]);
     }
 
     protected static string NormalizeSongNameString(MaiSongDto song)

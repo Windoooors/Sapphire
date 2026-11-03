@@ -16,7 +16,7 @@ public class MaiDataManager
         context.Database.Migrate();
 
         Songs = [];
-        Aliases = [];
+        AliasList = [];
 
         UpdateSongsAndAliases(context);
         Versions = context.MaiVersions.AsNoTracking().OrderBy(x => x.VersionIndex).ToArray();
@@ -31,7 +31,7 @@ public class MaiDataManager
     public static MaiDataManager? Instance { get; private set; } // Will be set to null when refreshing indexing data.
 
     public MaiSongDto[] Songs { get; private set; }
-    public MaiAliasDto[] Aliases { get; private set; }
+    public List<MaiAliasDto> AliasList { get; private set; }
     public MaiVersionDto[] Versions { get; private set; }
     public MaiCategoryDto[] Categories { get; private set; }
 
@@ -138,15 +138,15 @@ public class MaiDataManager
             if (maiSongDto.SongId != null)
                 IdToSong.TryAdd(maiSongDto.SongId ?? 0, maiSongDto);
 
-            SongToAliases.TryAdd(maiSongDto, [.. Aliases.Where(x => x.Song.Equals(maiSongDto))]);
+            SongToAliases.TryAdd(maiSongDto, [.. AliasList.Where(x => x.Song.Equals(maiSongDto))]);
         }
 
-        foreach (var alias in Aliases)
+        foreach (var alias in AliasList)
         {
             var aliasString = alias.Alias.ToLower();
 
             AliasToSongs.TryAdd(aliasString,
-                [.. Aliases.Where(x => x.Alias.ToLower() == aliasString).Select(y => y.Song)]);
+                [.. AliasList.Where(x => x.Alias.ToLower() == aliasString).Select(y => y.Song)]);
 
             AliasIdToAlias.TryAdd(alias.AliasId, alias);
         }
@@ -190,8 +190,9 @@ public class MaiDataManager
         context.MaiAliases.Remove(alias);
 
         await context.SaveChangesAsync();
-
-        UpdateSongsAndAliases(context);
+        
+        AliasList.RemoveAll(x => x.AliasId == aliasId);
+        
         BakeIndexingData();
 
         return true;
@@ -199,7 +200,7 @@ public class MaiDataManager
 
     public async Task<bool> TryAddAlias(MaiSongDto maiSongDto, string alias, long creatorUserId)
     {
-        if (Aliases.AsQueryable().Any(x => x.Alias.ToLower() == alias.ToLower() && x.Song.Equals(maiSongDto)))
+        if (AliasList.AsQueryable().Any(x => x.Alias.ToLower() == alias.ToLower() && x.Song.Equals(maiSongDto)))
             return false;
 
         await using var context = new MaiMetadataContext();
@@ -209,16 +210,19 @@ public class MaiDataManager
         if (song == null)
             return false;
 
-        await context.MaiAliases.AddAsync(new MaiAliasDto
+        var result = new MaiAliasDto
         {
             Alias = alias,
             CreatorUserId = creatorUserId,
             Song = song
-        });
+        };
+
+        await context.MaiAliases.AddAsync(result);
 
         await context.SaveChangesAsync();
-
-        UpdateSongsAndAliases(context);
+        
+        AliasList.Add(result);
+        
         BakeIndexingData();
 
         return true;
@@ -231,10 +235,10 @@ public class MaiDataManager
             .OrderBy(x => x.SapphireId)
             .ToArray();
 
-        Aliases = context.MaiAliases
+        AliasList = context.MaiAliases
             .Include(x => x.Song)
             .OrderBy(x => x.AliasId)
-            .ToArray();
+            .ToList();
     }
 
     public static int GetRating(int chartRating, uint achievement)

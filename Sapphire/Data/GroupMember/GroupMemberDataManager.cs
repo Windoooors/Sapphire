@@ -13,13 +13,13 @@ public class GroupMemberDataManager
     {
         Instance = this;
 
-        Aliases = [];
-
         using var context = new GroupMemberDataContext();
 
         context.Database.Migrate();
+        
+        AliasList = context.GroupMemberAliases.ToList();
 
-        BakeIndexingData(context);
+        BakeIndexingData();
     }
 
     public Dictionary<string, (long groupId, long userId)[]> AliasToUserIds { get; } = [];
@@ -28,65 +28,73 @@ public class GroupMemberDataManager
     public (long groupId, long userId)[] AliasedUserIds { get; private set; } = [];
     public Dictionary<(long groupId, long userId), GroupMemberAlias[]> UserIdToAliases { get; } = [];
 
-    public GroupMemberAlias[] Aliases { get; private set; }
+    public List<GroupMemberAlias> AliasList { get; private set; }
 
-    private void BakeIndexingData(GroupMemberDataContext context)
+    private void BakeIndexingData()
     {
-        Aliases = context.GroupMemberAliases.ToArray();
-
+        Instance = null;
+        
         AliasToUserIds.Clear();
         AliasSearchKeys.Clear();
         UserIdToAliases.Clear();
         AliasIdToAlias.Clear();
 
-        foreach (var groupMemberAlias in Aliases)
+        foreach (var groupMemberAlias in AliasList)
         {
             AliasToUserIds.TryAdd(groupMemberAlias.Alias.ToLower(),
-                Aliases.Where(x =>
-                        x.Alias.ToLower() == groupMemberAlias.Alias.ToLower() && x.GroupId == groupMemberAlias.GroupId)
+                AliasList.Where(x =>
+                        x.Alias.ToLower() == groupMemberAlias.Alias.ToLower())
                     .Select(x =>
                         (x.GroupId, x.UserId)).ToArray());
 
             AliasSearchKeys.TryAdd((groupMemberAlias.GroupId, groupMemberAlias.UserId),
-                Aliases.Where(x => x.UserId == groupMemberAlias.UserId && x.GroupId == groupMemberAlias.GroupId)
+                AliasList.Where(x => x.UserId == groupMemberAlias.UserId && x.GroupId == groupMemberAlias.GroupId)
                     .Select(x => SearchHelper.NormalizeCjkString(x.Alias)).ToArray());
 
             UserIdToAliases.TryAdd((groupMemberAlias.GroupId, groupMemberAlias.UserId),
-                Aliases.Where(x => x.UserId == groupMemberAlias.UserId && x.GroupId == groupMemberAlias.GroupId)
+                AliasList.Where(x => x.UserId == groupMemberAlias.UserId && x.GroupId == groupMemberAlias.GroupId)
                     .ToArray());
 
             AliasIdToAlias.TryAdd(groupMemberAlias.MemberAliasId, groupMemberAlias);
         }
 
         AliasedUserIds = AliasSearchKeys.Keys.ToArray();
+
+        Instance = this;
     }
-    
+
     public async Task<bool> TryAddAlias(long userId, long groupId, string alias)
     {
-        if (Aliases.AsQueryable().Any(x => x.Alias.ToLower() == alias.ToLower() && x.GroupId == groupId && x.UserId == userId))
+        if (AliasList.AsQueryable()
+            .Any(x => x.Alias.ToLower() == alias.ToLower() && x.GroupId == groupId && x.UserId == userId))
             return false;
 
         await using var context = new GroupMemberDataContext();
 
-        var user = await context.GroupMemberAliases.FirstOrDefaultAsync(x => x.GroupId == groupId && x.UserId == userId);
+        var user = await context.GroupMemberAliases.FirstOrDefaultAsync(x =>
+            x.GroupId == groupId && x.UserId == userId);
 
         if (user == null)
             return false;
 
-        await context.GroupMemberAliases.AddAsync(new GroupMemberAlias()
+        var result = new GroupMemberAlias
         {
             Alias = alias,
             UserId = userId,
             GroupId = groupId
-        });
+        };
+
+        await context.GroupMemberAliases.AddAsync(result);
 
         await context.SaveChangesAsync();
         
-        BakeIndexingData(context);
+        AliasList.Add(result);
+
+        BakeIndexingData();
 
         return true;
     }
-    
+
     public async Task<bool> TryRemoveAlias(int aliasId, long userId, bool forced = false)
     {
         await using var context = new GroupMemberDataContext();
@@ -103,7 +111,9 @@ public class GroupMemberDataManager
 
         await context.SaveChangesAsync();
         
-        BakeIndexingData(context);
+        AliasList.RemoveAll(x => x.MemberAliasId == aliasId);
+
+        BakeIndexingData();
 
         return true;
     }

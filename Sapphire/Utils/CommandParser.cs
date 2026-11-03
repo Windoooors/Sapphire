@@ -8,16 +8,16 @@ namespace Sapphire.Utils;
 
 public class CommandParser(IEnumerable<CommandBase> rootCommands, string[] commandPrefixes)
 {
-    private static Dictionary<string, string> _shortcuts = new (StringComparer.OrdinalIgnoreCase)
+    private static readonly Dictionary<string, string> _shortcuts = new(StringComparer.OrdinalIgnoreCase)
     {
-        {"score", "info -s"},
-        {"ap50", "b50 -ap"},
-        {"app50", "b50 -app"},
-        {"fc50", "b50 -fc"},
-        {"fcp50", "b50 -fcp"},
-        {"pc50", "b50 -pc"}
+        { "score", "info -s" },
+        { "ap50", "b50 -ap" },
+        { "app50", "b50 -app" },
+        { "fc50", "b50 -fc" },
+        { "fcp50", "b50 -fcp" },
+        { "pc50", "b50 -pc" }
     };
-    
+
     public async Task ParseAndExecute(CqMessagePostContext context)
     {
         foreach (var rootCommand in rootCommands) await rootCommand.ReceiveDirectly(context);
@@ -26,16 +26,14 @@ public class CommandParser(IEnumerable<CommandBase> rootCommands, string[] comma
             return;
 
         var commandLine = context.Message.Text;
-        
+
         foreach (var keyValuePair in _shortcuts)
-        {
             if (commandLine.StartsWith(keyValuePair.Key))
             {
                 commandLine = keyValuePair.Value + commandLine.Substring(keyValuePair.Key.Length);
                 break;
             }
-        }
-        
+
         if (string.IsNullOrWhiteSpace(commandLine)) return;
 
         var tokens = Tokenize(commandLine);

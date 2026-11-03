@@ -183,7 +183,7 @@ public class SearchCommand : MaiCommandBase
 
         var count = songsSet.Count;
 
-        if (count == 0) return "未找到符合条件的乐曲";
+        if (count == 0) return "未搜索到符合条件的乐曲";
 
         if (count > 50) return "结果过多，请缩小查询范围";
 
