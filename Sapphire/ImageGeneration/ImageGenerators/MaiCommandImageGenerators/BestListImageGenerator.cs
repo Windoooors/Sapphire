@@ -13,20 +13,29 @@ namespace Sapphire.ImageGeneration.ImageGenerators.MaiCommandImageGenerators;
 
 public static class BestListImageGenerator
 {
-    private static readonly Image RemasterIndicatorImage =
-        new Image<Rgba32>(100, 5, ColorPalette.RemasterColor.ToPixel<Rgba32>());
+    private static readonly Image RemasterIndicatorImage;
+    private static readonly Image MasterIndicatorImage;
+    private static readonly Image ExpertIndicatorImage;
+    private static readonly Image AdvancedIndicatorImage;
+    private static readonly Image BasicIndicatorImage;
 
-    private static readonly Image MasterIndicatorImage =
-        new Image<Rgba32>(100, 5, ColorPalette.MasterColor.ToPixel<Rgba32>());
+    static BestListImageGenerator()
+    {
+        RemasterIndicatorImage =
+            new Image<Rgba32>(100, 5, ColorPalette.RemasterColor.ToPixel<Rgba32>());
 
-    private static readonly Image ExpertIndicatorImage =
-        new Image<Rgba32>(100, 5, ColorPalette.ExpertColor.ToPixel<Rgba32>());
+        MasterIndicatorImage =
+            new Image<Rgba32>(100, 5, ColorPalette.MasterColor.ToPixel<Rgba32>());
 
-    private static readonly Image AdvancedIndicatorImage =
-        new Image<Rgba32>(100, 5, ColorPalette.AdvancedColor.ToPixel<Rgba32>());
+        ExpertIndicatorImage =
+            new Image<Rgba32>(100, 5, ColorPalette.ExpertColor.ToPixel<Rgba32>());
 
-    private static readonly Image BasicIndicatorImage =
-        new Image<Rgba32>(100, 5, ColorPalette.BasicColor.ToPixel<Rgba32>());
+        AdvancedIndicatorImage =
+            new Image<Rgba32>(100, 5, ColorPalette.AdvancedColor.ToPixel<Rgba32>());
+
+        BasicIndicatorImage =
+            new Image<Rgba32>(100, 5, ColorPalette.BasicColor.ToPixel<Rgba32>());
+    }
 
     public static async Task<string> Generate(BestListCommand.BestListData data, bool useJpLevel, bool useFit)
     {

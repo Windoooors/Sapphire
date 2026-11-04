@@ -31,7 +31,7 @@ public static class ApiOperator
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", userCredential.Item1);
         request.Content = new FormUrlEncodedContent(requestBody);
 
-        var response = await Program.HttpClient.SendAsync(request);
+        using var response = await Program.HttpClient.SendAsync(request);
         var stringResult = await response.Content.ReadAsStringAsync();
 
         return (stringResult, response.StatusCode);
@@ -54,7 +54,7 @@ public static class ApiOperator
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", userCredential.Item1);
         request.Content = requestContent;
 
-        var response = await Program.HttpClient.SendAsync(request);
+        using var response = await Program.HttpClient.SendAsync(request);
         var stringResult = await response.Content.ReadAsStringAsync();
 
         return (stringResult, response.StatusCode);
@@ -75,7 +75,7 @@ public static class ApiOperator
 
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", userCredential.Item1);
 
-        var response = await Program.HttpClient.SendAsync(request);
+        using var response = await Program.HttpClient.SendAsync(request);
         var stringResult = await response.Content.ReadAsStringAsync();
 
         return (stringResult, response.StatusCode);
@@ -96,7 +96,7 @@ public static class ApiOperator
             ["subject"] = "ref:" + refString
         };
 
-        var response = await Program.HttpClient.PostAsync($"{env.DivingFishAuthUrl}/oauth/token",
+        using var response = await Program.HttpClient.PostAsync($"{env.DivingFishAuthUrl}/oauth/token",
             new FormUrlEncodedContent(requestContent));
 
         if (response.StatusCode != HttpStatusCode.OK) return false;

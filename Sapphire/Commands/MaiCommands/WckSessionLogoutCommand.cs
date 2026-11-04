@@ -30,7 +30,7 @@ public class WckSessionLogoutCommand : MaiCommandBase
 
             var request = new HttpRequestMessage(HttpMethod.Delete, $"{env.WckUrl}/v1/sessions?session_id={sessionId}");
 
-            var resp = await Program.HttpClient.SendAsync(request);
+            using var resp = await Program.HttpClient.SendAsync(request);
             var respBody = await resp.Content.ReadAsStringAsync();
 
             var responseObject = JsonSerializer.Deserialize<SessionLogoutResponseDto>(respBody);

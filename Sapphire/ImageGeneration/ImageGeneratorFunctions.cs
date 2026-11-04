@@ -15,7 +15,7 @@ public static class ImageGeneratorFunctions
         {
             Quality = 50
         });
-
+        
         return Convert.ToBase64String(ms.ToArray());
     }
 
@@ -39,13 +39,26 @@ public static class ImageGeneratorFunctions
                 ColorPalette.GetColorWithNewTransparency(color ?? ColorPalette.FontColor, opacity))
             , null);
     }
+    
+    public static async Task<string> GetUserAvatarBase64Async(long userId, int spec = 100)
+    {
+        var url = $"http://q.qlogo.cn/headimg_dl?dst_uin={userId}&spec={spec}&img_type=jpg";
+
+        using var resp = await Program.HttpClient.GetAsync(url);
+        await using var stream = await resp.Content.ReadAsStreamAsync();
+        
+        using var memoryStream = new MemoryStream();
+        await stream.CopyToAsync(memoryStream);
+
+        return Convert.ToBase64String(memoryStream.ToArray());
+    }
 
     public static async Task<Image> GetUserAvatarAsync(long userId, int spec = 100)
     {
         var url = $"http://q.qlogo.cn/headimg_dl?dst_uin={userId}&spec={spec}&img_type=jpg";
 
-        var resp = await Program.HttpClient.GetAsync(url);
-        var stream = await resp.Content.ReadAsStreamAsync();
+        using var resp = await Program.HttpClient.GetAsync(url);
+        await using var stream = await resp.Content.ReadAsStreamAsync();
 
         return await Image.LoadAsync(stream);
     }
@@ -54,8 +67,8 @@ public static class ImageGeneratorFunctions
     {
         var url = $"http://q.qlogo.cn/headimg_dl?dst_uin={userId}&spec={spec}&img_type=jpg";
 
-        var resp = Program.HttpClient.GetAsync(url).Result;
-        var stream = resp.Content.ReadAsStream();
+        using var resp = Program.HttpClient.GetAsync(url).Result;
+        using var stream = resp.Content.ReadAsStream();
 
         return Image.Load(stream);
     }

@@ -1,6 +1,6 @@
 namespace Sapphire.Data.GroupMember.Dtos;
 
-public record GroupMemberAlias
+public record GroupMemberAliasDto
 {
     public required string Alias { get; init; }
     public long UserId { get; init; }

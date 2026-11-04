@@ -35,7 +35,7 @@ public static class WckDataManager // Wck stands for WahlapConnectiveKits
         var request = new HttpRequestMessage(HttpMethod.Get,
             $"{env.WckUrl}/v1/user_music_data?session_id={sessionId}&range_from=0&range_to=200000");
 
-        var resp = await Program.HttpClient.SendAsync(request);
+        using var resp = await Program.HttpClient.SendAsync(request);
         if (resp.StatusCode != HttpStatusCode.OK)
             throw new HttpRequestException($"Unexpected status code: {resp.StatusCode}", null,
                 resp.StatusCode);
@@ -53,7 +53,7 @@ public static class WckDataManager // Wck stands for WahlapConnectiveKits
 
         var request = new HttpRequestMessage(HttpMethod.Get, $"{env.WckUrl}/v1/sessions?qq_id=" + userId);
 
-        var resp = await Program.HttpClient.SendAsync(request);
+        using var resp = await Program.HttpClient.SendAsync(request);
 
         if (resp.StatusCode != HttpStatusCode.OK)
             throw new HttpRequestException($"Unexpected status code: {resp.StatusCode}", null,

@@ -18,17 +18,91 @@ public class GroupMemberDataManager
         context.Database.Migrate();
         
         AliasList = context.GroupMemberAliases.ToList();
+        var userPool = context.GroupMembers.ToList();
+        var groupResult = userPool.GroupBy(x => x.GroupId);
+        foreach (var group in groupResult)
+        {
+            UserPool.Add(group.Key, group.Select(x => x.UserId).ToHashSet());
+        }
 
         BakeIndexingData();
     }
 
     public Dictionary<string, (long groupId, long userId)[]> AliasToUserIds { get; } = [];
     public Dictionary<(long groupId, long userId), string[]> AliasSearchKeys { get; } = [];
-    public Dictionary<int, GroupMemberAlias> AliasIdToAlias { get; } = [];
+    public Dictionary<int, GroupMemberAliasDto> AliasIdToAlias { get; } = [];
     public (long groupId, long userId)[] AliasedUserIds { get; private set; } = [];
-    public Dictionary<(long groupId, long userId), GroupMemberAlias[]> UserIdToAliases { get; } = [];
+    public Dictionary<(long groupId, long userId), GroupMemberAliasDto[]> UserIdToAliases { get; } = [];
 
-    public List<GroupMemberAlias> AliasList { get; private set; }
+    public List<GroupMemberAliasDto> AliasList { get; private set; }
+
+    public Dictionary<long, HashSet<long>> UserPool { get; private set; } = [];
+    
+    public async Task RemoveUserFromPool(long userId, long groupId)
+    {
+        if (!UserPool.TryGetValue(groupId, out var group))
+        {
+            return;
+        }
+
+        if (!group.Contains(userId))
+        {
+            return;
+        }
+        
+        group.Remove(userId);
+        
+        await using (var context = new GroupMemberDataContext())
+        {
+            var findResult = await context.GroupMembers.FirstOrDefaultAsync(x => x.GroupId == groupId && x.UserId == userId);
+
+            if (findResult == null)
+                return;
+            
+            context.GroupMembers.Remove(findResult);
+            
+            await context.SaveChangesAsync();
+        }
+    }
+
+    public async Task AddUserToPool(long userId, long groupId)
+    {
+        if (!UserPool.TryGetValue(groupId, out var group))
+        {
+            UserPool.Add(groupId, [userId]);
+
+            await using (var context = new GroupMemberDataContext())
+            {
+                context.GroupMembers.Add(new GroupMemberDto()
+                {
+                    GroupId = groupId,
+                    UserId = userId,
+                });
+                
+                await context.SaveChangesAsync();
+            }
+            
+            return;
+        }
+
+        if (group.Contains(userId))
+        {
+            return;
+        }
+        
+        group.Add(userId);
+        
+        await using (var context = new GroupMemberDataContext())
+        {
+            context.GroupMembers.Add(new GroupMemberDto()
+            {
+                GroupId = groupId,
+                UserId = userId,
+            });
+            
+            await context.SaveChangesAsync();
+        }
+    }
 
     private void BakeIndexingData()
     {
@@ -77,7 +151,7 @@ public class GroupMemberDataManager
         if (user == null)
             return false;
 
-        var result = new GroupMemberAlias
+        var result = new GroupMemberAliasDto
         {
             Alias = alias,
             UserId = userId,

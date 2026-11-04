@@ -45,7 +45,7 @@ public class DivingFishMaiDataManager
 
         using var requestContent = new FormUrlEncodedContent(requestBody);
 
-        var result = await Program.HttpClient.PostAsync($"{env.DivingFishAuthUrl}/oauth/device_authorization",
+        using var result = await Program.HttpClient.PostAsync($"{env.DivingFishAuthUrl}/oauth/device_authorization",
             requestContent);
 
         if (result.StatusCode != HttpStatusCode.OK) return null;

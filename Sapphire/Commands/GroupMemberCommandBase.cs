@@ -61,19 +61,26 @@ public abstract class GroupMemberCommandBase : CommandBase
         }
     }
 
-    public static async Task<string?> GetNickname(long id, long groupId)
+    public static async Task<string?> GetNickname(long id, long groupId, bool forceGroupNickname = false)
     {
         if (Program.BotSessionHandler.Session == null)
             return null;
 
         var memberInformation = await Program.BotSessionHandler.Session.GetGroupMemberInformationAsync(groupId, id);
 
-        if (memberInformation == null || memberInformation.Status == CqActionStatus.Failed)
-            return await GetNickname(id);
+        if (!forceGroupNickname)
+        {
+            if (memberInformation == null || memberInformation.Status == CqActionStatus.Failed)
+                return await GetNickname(id);
+        }
 
+        if (memberInformation == null || memberInformation.Status == CqActionStatus.Failed)
+            return null;
+        
         var nickname = memberInformation.GroupNickname == ""
             ? memberInformation.Nickname
             : memberInformation.GroupNickname;
+            
         return nickname;
     }
 
