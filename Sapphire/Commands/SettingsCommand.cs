@@ -33,7 +33,7 @@ public class SettingsCommand : CommandBase
                 stringBuilder.Append("[");
                 stringBuilder.Append(settingsItem.Identifier);
                 stringBuilder.Append("] ");
-                stringBuilder.Append(SettingsDataManager.Instance.GetValue(context, settingsItem.Identifier)
+                stringBuilder.AppendLine(SettingsDataManager.Instance.GetValue(context, settingsItem.Identifier)
                     ? "True"
                     : "False");
             }

@@ -118,7 +118,7 @@ public class NrConvertCommand : CommandBase // NR stands for Number Representati
                 await SendMessage(context, [value.ToString(format, null)]);
             }
         }
-        catch (FormatException e)
+        catch (FormatException)
         {
             await SendMessage(context, ["输入格式有误"]);
         }
