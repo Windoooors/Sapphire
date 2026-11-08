@@ -4,6 +4,28 @@ namespace Sapphire.Commands;
 
 public class NrConvertCommand : CommandBase // NR stands for Number Representation
 {
+    private static readonly Dictionary<string, Func<string, IFormattable>> FloatConverters = new()
+    {
+        ["32"] = s => Convert.ToSingle(s),
+        ["64"] = s => Convert.ToDouble(s)
+    };
+
+    private static readonly Dictionary<string, Func<string, IFormattable>> SignedConverters = new()
+    {
+        ["8"] = s => Convert.ToSByte(s),
+        ["16"] = s => Convert.ToInt16(s),
+        ["32"] = s => Convert.ToInt32(s),
+        ["64"] = s => Convert.ToInt64(s)
+    };
+
+    private static readonly Dictionary<string, Func<string, IFormattable>> UnsignedConverters = new()
+    {
+        ["8"] = s => Convert.ToByte(s),
+        ["16"] = s => Convert.ToUInt16(s),
+        ["32"] = s => Convert.ToUInt32(s),
+        ["64"] = s => Convert.ToUInt64(s)
+    };
+
     public NrConvertCommand()
     {
         DirectCommandHeads = ["nrc", "数制转换"];
@@ -40,41 +62,19 @@ public class NrConvertCommand : CommandBase // NR stands for Number Representati
         ];
     }
 
-    private static readonly Dictionary<string, Func<string, IFormattable>> FloatConverters = new()
-    {
-        ["32"] = s => Convert.ToSingle(s),
-        ["64"] = s => Convert.ToDouble(s),
-    };
-
-    private static readonly Dictionary<string, Func<string, IFormattable>> SignedConverters = new()
-    {
-        ["8"] = s => Convert.ToSByte(s),
-        ["16"] = s => Convert.ToInt16(s),
-        ["32"] = s => Convert.ToInt32(s),
-        ["64"] = s => Convert.ToInt64(s),
-    };
-
-    private static readonly Dictionary<string, Func<string, IFormattable>> UnsignedConverters = new()
-    {
-        ["8"] = s => Convert.ToByte(s),
-        ["16"] = s => Convert.ToUInt16(s),
-        ["32"] = s => Convert.ToUInt32(s),
-        ["64"] = s => Convert.ToUInt64(s),
-    };
-
     protected override async Task ProcessWithArguments(
         CommandContext commandContext,
         CqMessagePostContext context)
     {
         var numberString = commandContext.Argument;
         var target = commandContext.GetFlag("--target") ?? "hex";
-        
+
         if (numberString == null)
         {
             await SendArgumentError(context);
             return;
         }
-        
+
         var lengthString = commandContext.GetFlag("--length", "32") ?? "32";
 
         var format = target switch
@@ -103,9 +103,22 @@ public class NrConvertCommand : CommandBase // NR stands for Number Representati
         try
         {
             var value = converter(numberString);
-            await SendMessage(context, [value.ToString(format, null)]);
+
+            if (isFloat)
+            {
+                var result = format switch
+                {
+                    "X" => BitConverter.SingleToInt32Bits((float)value).ToString("X"),
+                    _ => Convert.ToString(BitConverter.SingleToInt32Bits((float)value), 2)
+                };
+                await SendMessage(context, [result]);
+            }
+            else
+            {
+                await SendMessage(context, [value.ToString(format, null)]);
+            }
         }
-        catch (FormatException)
+        catch (FormatException e)
         {
             await SendMessage(context, ["输入格式有误"]);
         }

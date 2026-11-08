@@ -16,14 +16,11 @@ public class GroupMemberDataManager
         using var context = new GroupMemberDataContext();
 
         context.Database.Migrate();
-        
+
         AliasList = context.GroupMemberAliases.ToList();
         var userPool = context.GroupMembers.ToList();
         var groupResult = userPool.GroupBy(x => x.GroupId);
-        foreach (var group in groupResult)
-        {
-            UserPool.Add(group.Key, group.Select(x => x.UserId).ToHashSet());
-        }
+        foreach (var group in groupResult) UserPool.Add(group.Key, group.Select(x => x.UserId).ToHashSet());
 
         BakeIndexingData();
     }
@@ -34,33 +31,28 @@ public class GroupMemberDataManager
     public (long groupId, long userId)[] AliasedUserIds { get; private set; } = [];
     public Dictionary<(long groupId, long userId), GroupMemberAliasDto[]> UserIdToAliases { get; } = [];
 
-    public List<GroupMemberAliasDto> AliasList { get; private set; }
+    public List<GroupMemberAliasDto> AliasList { get; }
 
-    public Dictionary<long, HashSet<long>> UserPool { get; private set; } = [];
-    
+    public Dictionary<long, HashSet<long>> UserPool { get; } = [];
+
     public async Task RemoveUserFromPool(long userId, long groupId)
     {
-        if (!UserPool.TryGetValue(groupId, out var group))
-        {
-            return;
-        }
+        if (!UserPool.TryGetValue(groupId, out var group)) return;
 
-        if (!group.Contains(userId))
-        {
-            return;
-        }
-        
+        if (!group.Contains(userId)) return;
+
         group.Remove(userId);
-        
+
         await using (var context = new GroupMemberDataContext())
         {
-            var findResult = await context.GroupMembers.FirstOrDefaultAsync(x => x.GroupId == groupId && x.UserId == userId);
+            var findResult =
+                await context.GroupMembers.FirstOrDefaultAsync(x => x.GroupId == groupId && x.UserId == userId);
 
             if (findResult == null)
                 return;
-            
+
             context.GroupMembers.Remove(findResult);
-            
+
             await context.SaveChangesAsync();
         }
     }
@@ -73,33 +65,30 @@ public class GroupMemberDataManager
 
             await using (var context = new GroupMemberDataContext())
             {
-                context.GroupMembers.Add(new GroupMemberDto()
+                context.GroupMembers.Add(new GroupMemberDto
                 {
                     GroupId = groupId,
-                    UserId = userId,
+                    UserId = userId
                 });
-                
+
                 await context.SaveChangesAsync();
             }
-            
+
             return;
         }
 
-        if (group.Contains(userId))
-        {
-            return;
-        }
-        
+        if (group.Contains(userId)) return;
+
         group.Add(userId);
-        
+
         await using (var context = new GroupMemberDataContext())
         {
-            context.GroupMembers.Add(new GroupMemberDto()
+            context.GroupMembers.Add(new GroupMemberDto
             {
                 GroupId = groupId,
-                UserId = userId,
+                UserId = userId
             });
-            
+
             await context.SaveChangesAsync();
         }
     }
@@ -107,7 +96,7 @@ public class GroupMemberDataManager
     private void BakeIndexingData()
     {
         Instance = null;
-        
+
         AliasToUserIds.Clear();
         AliasSearchKeys.Clear();
         UserIdToAliases.Clear();
@@ -161,7 +150,7 @@ public class GroupMemberDataManager
         await context.GroupMemberAliases.AddAsync(result);
 
         await context.SaveChangesAsync();
-        
+
         AliasList.Add(result);
 
         BakeIndexingData();
@@ -184,7 +173,7 @@ public class GroupMemberDataManager
         context.GroupMemberAliases.Remove(alias);
 
         await context.SaveChangesAsync();
-        
+
         AliasList.RemoveAll(x => x.MemberAliasId == aliasId);
 
         BakeIndexingData();

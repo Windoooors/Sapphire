@@ -1,5 +1,6 @@
 using System.Text;
 using EleCho.GoCqHttpSdk.Post;
+using SixLabors.ImageSharp.Diagnostics;
 
 namespace Sapphire.Commands;
 
@@ -16,7 +17,7 @@ public class PingCommand : CommandBase
     {
         var stringBuilder = new StringBuilder("Pong!\n");
         stringBuilder.Append("未释放 ImageSharp.Image 实例数量：");
-        stringBuilder.Append(SixLabors.ImageSharp.Diagnostics.MemoryDiagnostics.TotalUndisposedAllocationCount);
+        stringBuilder.Append(MemoryDiagnostics.TotalUndisposedAllocationCount);
 
         await SendMessage(context, [stringBuilder.ToString()]);
     }

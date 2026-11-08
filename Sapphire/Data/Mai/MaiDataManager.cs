@@ -190,9 +190,9 @@ public class MaiDataManager
         context.MaiAliases.Remove(alias);
 
         await context.SaveChangesAsync();
-        
+
         AliasList.RemoveAll(x => x.AliasId == aliasId);
-        
+
         BakeIndexingData();
 
         return true;
@@ -220,9 +220,9 @@ public class MaiDataManager
         await context.MaiAliases.AddAsync(result);
 
         await context.SaveChangesAsync();
-        
+
         AliasList.Add(result);
-        
+
         BakeIndexingData();
 
         return true;

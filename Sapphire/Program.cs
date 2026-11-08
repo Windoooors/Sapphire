@@ -1,14 +1,17 @@
 ﻿using EleCho.GoCqHttpSdk;
 using Sapphire.Commands;
 using Sapphire.Data.Settings;
+using Sapphire.Environments;
 using Sapphire.Utils;
 using Serilog;
+using Timer = Sapphire.Utils.Timer;
 
 namespace Sapphire;
 
 public static class Program
 {
     public static BotSessionHandler BotSessionHandler = new();
+    public static Timer Timer = new(SpEnvironmentHandler.Environment.Sapphire.UtcDayTickTime);
     private static CancellationToken _sessionCancellationToken;
 
     private static SettingsDataManager? _settingsDataManager;
@@ -18,8 +21,6 @@ public static class Program
         new PingCommand(), new MaiCommand(), new SettingsCommand(), new ConfirmationCommand(), new NrConvertCommand(),
         new GayFactor(), new GroupMemberCommand()
     ];
-
-    private static readonly string[] CommandPrefixes = ["s"];
 
     private static CommandParser? _commandParser;
 
@@ -71,7 +72,7 @@ public static class Program
 
     private static void StartParsing(CqWsSession session)
     {
-        _commandParser = new CommandParser(GroupCommands, CommandPrefixes);
+        _commandParser = new CommandParser(GroupCommands, SpEnvironmentHandler.Environment.Sapphire.CommandPrefixes);
 
         session.UseGroupMessage(context => { _ = _commandParser.ParseAndExecute(context); });
         session.UsePrivateMessage(context => { _ = _commandParser.ParseAndExecute(context); });

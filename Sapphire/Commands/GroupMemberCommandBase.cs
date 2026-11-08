@@ -18,7 +18,7 @@ public abstract class GroupMemberCommandBase : CommandBase
             userIds = null;
             return false;
         }
-        
+
         if (context is CqGroupMessagePostContext groupContext)
         {
             var result = MatchExact(key);
@@ -69,18 +69,16 @@ public abstract class GroupMemberCommandBase : CommandBase
         var memberInformation = await Program.BotSessionHandler.Session.GetGroupMemberInformationAsync(groupId, id);
 
         if (!forceGroupNickname)
-        {
             if (memberInformation == null || memberInformation.Status == CqActionStatus.Failed)
                 return await GetNickname(id);
-        }
 
         if (memberInformation == null || memberInformation.Status == CqActionStatus.Failed)
             return null;
-        
+
         var nickname = memberInformation.GroupNickname == ""
             ? memberInformation.Nickname
             : memberInformation.GroupNickname;
-            
+
         return nickname;
     }
 

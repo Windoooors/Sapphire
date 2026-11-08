@@ -2,6 +2,7 @@ using System.Text;
 using EleCho.GoCqHttpSdk.Post;
 using Sapphire.Data.Mai;
 using Sapphire.Data.Mai.Dtos;
+using Sapphire.Environments;
 
 namespace Sapphire.Commands.MaiCommands;
 
@@ -58,7 +59,8 @@ public class AliasCommand : MaiCommandBase
         {
             await SendMessage(context,
             [
-                BuildSongListString(songs, $"s mai alias SID{songs[0].SapphireId} --add {aliasToBeAdded}",
+                BuildSongListString(songs,
+                    $"{SpEnvironmentHandler.Environment.Sapphire.CommandPrefixes[0]} mai alias SID{songs[0].SapphireId} --add {aliasToBeAdded}",
                     $"为乐曲 {NormalizeSongNameString(songs[0])} 添加别名 \"{aliasToBeAdded}\"")
             ]);
             return;
@@ -139,7 +141,11 @@ public class AliasCommand : MaiCommandBase
         if (songs.Length > 1)
         {
             await SendMessage(context,
-                [BuildSongListString(songs, $"s mai alias SID{songs[0].SapphireId}", "查询列表中第一首乐曲的别名")]);
+            [
+                BuildSongListString(songs,
+                    $"{SpEnvironmentHandler.Environment.Sapphire.CommandPrefixes[0]} mai alias SID{songs[0].SapphireId}",
+                    "查询列表中第一首乐曲的别名")
+            ]);
             return;
         }
 

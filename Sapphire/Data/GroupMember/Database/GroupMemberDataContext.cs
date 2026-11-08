@@ -13,7 +13,7 @@ public class GroupMemberDataContext : DbContext
     {
         var aliasEntityBuilder = modelBuilder.Entity<GroupMemberAliasDto>();
         aliasEntityBuilder.HasKey(x => x.MemberAliasId);
-        
+
         var memberEntityBuilder = modelBuilder.Entity<GroupMemberDto>();
         memberEntityBuilder.HasKey(x => x.MemberId);
     }

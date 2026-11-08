@@ -9,7 +9,8 @@ public class GroupMemberCommand : GroupMemberCommandBase
     {
         CommandHeads = ["group", "group-member", "gm"];
         DirectCommandHeads = [];
-        SubCommands = [new GroupMemberAliasCommand(), new GroupMemberSearchCommand(), new RapeCommand()];
+        SubCommands =
+            [new GroupMemberAliasCommand(), new GroupMemberSearchCommand(), new RapeCommand(), new MarryCommand()];
     }
 
     public override void Initialize()

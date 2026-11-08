@@ -1,5 +1,6 @@
 ﻿using System.Text;
 using EleCho.GoCqHttpSdk.Post;
+using Sapphire.Environments;
 
 namespace Sapphire.Commands.MaiCommands;
 
@@ -104,7 +105,7 @@ public class ToleranceCommand : MaiCommandBase
         if (!TryGetSongsByString(commandContext.Argument, out var songs) || songs == null)
         {
             await SendUnknownError(context);
-            return; 
+            return;
         }
 
         if (songs.Length == 0)
@@ -117,7 +118,8 @@ public class ToleranceCommand : MaiCommandBase
         {
             await SendMessage(context,
             [
-                BuildSongListString(songs, $"s mai tolerance SID{songs[0].SapphireId} -sssp",
+                BuildSongListString(songs,
+                    $"{SpEnvironmentHandler.Environment.Sapphire.CommandPrefixes[0]} mai tolerance SID{songs[0].SapphireId} -sssp",
                     $"查询歌曲 {NormalizeSongNameString(songs[0])} 的 SSS+ 分数线")
             ]);
             return;
@@ -183,7 +185,8 @@ public class ToleranceCommand : MaiCommandBase
                 $"TOUCH 数量：{chart.TouchCount ?? 0}\nBREAK 数量：{chart.BreakCount ?? 0}\n");
 
         var totalBasicScore = ((chart.TapCount ?? 0) + (chart.TouchCount ?? 0)) * 500 +
-                              (chart.HoldCount ?? 0) * 1000 + (chart.SlideCount ?? 0) * 1500 + (chart.BreakCount ?? 0) * 2500;
+                              (chart.HoldCount ?? 0) * 1000 + (chart.SlideCount ?? 0) * 1500 +
+                              (chart.BreakCount ?? 0) * 2500;
         var totalBreakScore = (chart.BreakCount ?? 0) * 100;
         var totalScore = totalBasicScore + totalBreakScore;
 

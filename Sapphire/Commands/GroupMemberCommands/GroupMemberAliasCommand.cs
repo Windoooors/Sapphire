@@ -1,6 +1,7 @@
 using System.Text;
 using EleCho.GoCqHttpSdk.Post;
 using Sapphire.Data.GroupMember;
+using Sapphire.Environments;
 
 namespace Sapphire.Commands.GroupMemberCommands;
 
@@ -37,7 +38,7 @@ public class GroupMemberAliasCommand : GroupMemberCommandBase
             await SendUnknownError(context);
             return;
         }
-        
+
         if (userIds.Length == 0)
         {
             await SendMemberNotFoundError(context);
@@ -48,7 +49,9 @@ public class GroupMemberAliasCommand : GroupMemberCommandBase
         {
             await SendMessage(context,
             [
-                await BuildMemberListString(userIds, $"s group-member alias {userIds[0]}", "查询列表中第一位用户的昵称",
+                await BuildMemberListString(userIds,
+                    $"{SpEnvironmentHandler.Environment.Sapphire.CommandPrefixes[0]} group-member alias {userIds[0]}",
+                    "查询列表中第一位用户的昵称",
                     context.GroupId)
             ]);
             return;
@@ -106,7 +109,8 @@ public class GroupMemberAliasCommand : GroupMemberCommandBase
         {
             await SendMessage(context,
             [
-                await BuildMemberListString(users, $"s group-member alias {users[0]} --add {aliasToBeAdded}",
+                await BuildMemberListString(users,
+                    $"{SpEnvironmentHandler.Environment.Sapphire.CommandPrefixes[0]} group-member alias {users[0]} --add {aliasToBeAdded}",
                     $"为用户 {nickname} ({users[0]}) 添加别名 \"{aliasToBeAdded}\"",
                     context.GroupId)
             ]);

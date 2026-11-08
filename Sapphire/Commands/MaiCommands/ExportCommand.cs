@@ -22,6 +22,8 @@ public class ExportCommand : MaiCommandBase
                 TakesValue = false
             }
         ];
+
+        ActivationSettingsIdentifier = "mai_export.enabled";
     }
 
     private async Task ExportDf(CqMessagePostContext context)
