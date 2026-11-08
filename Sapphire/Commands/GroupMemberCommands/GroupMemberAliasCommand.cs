@@ -16,7 +16,8 @@ public class GroupMemberAliasCommand : GroupMemberCommandBase
             new()
             {
                 LongName = "--add",
-                ShortName = "-a"
+                ShortName = "-a",
+                TakesValue = true
             },
             new()
             {

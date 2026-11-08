@@ -51,37 +51,44 @@ public class ToleranceCommand : MaiCommandBase
             new FlagSpec
             {
                 LongName = "--custom",
-                ShortName = "-c"
+                ShortName = "-c",
+                TakesValue = true
             },
             new FlagSpec
             {
                 LongName = "--detailed",
-                ShortName = "-d"
+                ShortName = "-d",
+                TakesValue = false
             },
             new FlagSpec
             {
                 LongName = "--remaster",
-                ShortName = "-rem"
+                ShortName = "-rem",
+                TakesValue = false
             },
             new FlagSpec
             {
                 LongName = "--master",
-                ShortName = "-mas"
+                ShortName = "-mas",
+                TakesValue = false
             },
             new FlagSpec
             {
                 LongName = "--expert",
-                ShortName = "-exp"
+                ShortName = "-exp",
+                TakesValue = false
             },
             new FlagSpec
             {
                 LongName = "--advanced",
-                ShortName = "-adv"
+                ShortName = "-adv",
+                TakesValue = false
             },
             new FlagSpec
             {
                 LongName = "--basic",
-                ShortName = "-bas"
+                ShortName = "-bas",
+                TakesValue = false
             }
         ];
     }

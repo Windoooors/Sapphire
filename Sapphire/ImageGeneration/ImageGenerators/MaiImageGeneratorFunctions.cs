@@ -17,7 +17,7 @@ public static class MaiImageGeneratorFunctions
 
     public static void LoadImages()
     {
-        if (_imagesLoaded)
+        if (_imagesLoaded || !SpEnvironmentHandler.Environment.ImageGeneration.PreloadCoverImages)
             return;
 
         var coverPath = Path.Combine(AppContext.BaseDirectory, "Resources", "Covers");

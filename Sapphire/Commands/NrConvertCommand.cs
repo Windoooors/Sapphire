@@ -15,88 +15,103 @@ public class NrConvertCommand : CommandBase // NR stands for Number Representati
         [
             new FlagSpec
             {
-                LongName = "--complement",
-                ShortName = "-c"
+                LongName = "--signed",
+                ShortName = "-s",
+                TakesValue = false
+            },
+            new FlagSpec
+            {
+                LongName = "--float",
+                ShortName = "-f",
+                TakesValue = false
             },
             new FlagSpec
             {
                 LongName = "--length",
-                ShortName = "-l"
+                ShortName = "-l",
+                TakesValue = true
             },
             new FlagSpec
             {
-                LongName = "--hex",
-                ShortName = "-h",
-                TakesValue = false
+                LongName = "--target",
+                ShortName = "-t",
+                TakesValue = true
             }
         ];
     }
 
-    protected override async Task ProcessWithArguments(CommandContext commandContext, CqMessagePostContext context)
+    private static readonly Dictionary<string, Func<string, IFormattable>> FloatConverters = new()
     {
-        var numberString = commandContext.GetFlag("--complement");
-        var lengthString = commandContext.GetFlag("--length", "8");
+        ["32"] = s => Convert.ToSingle(s),
+        ["64"] = s => Convert.ToDouble(s),
+    };
 
-        var format = commandContext.HasFlag("--hex") ? "X" : "B";
+    private static readonly Dictionary<string, Func<string, IFormattable>> SignedConverters = new()
+    {
+        ["8"] = s => Convert.ToSByte(s),
+        ["16"] = s => Convert.ToInt16(s),
+        ["32"] = s => Convert.ToInt32(s),
+        ["64"] = s => Convert.ToInt64(s),
+    };
 
+    private static readonly Dictionary<string, Func<string, IFormattable>> UnsignedConverters = new()
+    {
+        ["8"] = s => Convert.ToByte(s),
+        ["16"] = s => Convert.ToUInt16(s),
+        ["32"] = s => Convert.ToUInt32(s),
+        ["64"] = s => Convert.ToUInt64(s),
+    };
 
-        if (commandContext.HasFlag("--complement"))
+    protected override async Task ProcessWithArguments(
+        CommandContext commandContext,
+        CqMessagePostContext context)
+    {
+        var numberString = commandContext.Argument;
+        var target = commandContext.GetFlag("--target") ?? "hex";
+        
+        if (numberString == null)
         {
-            switch (lengthString)
-            {
-                case "8":
-                {
-                    if (sbyte.TryParse(numberString, out var number))
-                    {
-                        await SendMessage(context, [number.ToString(format)]);
-                        return;
-                    }
-
-                    break;
-                }
-                case "16":
-                {
-                    if (short.TryParse(numberString, out var number))
-                    {
-                        await SendMessage(context, [number.ToString(format)]);
-                        return;
-                    }
-
-                    break;
-                }
-                case "32":
-                {
-                    if (int.TryParse(numberString, out var number))
-                    {
-                        await SendMessage(context, [number.ToString(format)]);
-                        return;
-                    }
-
-                    break;
-                }
-                case "64":
-                {
-                    if (long.TryParse(numberString, out var number))
-                    {
-                        await SendMessage(context, [number.ToString(format)]);
-                        return;
-                    }
-
-                    break;
-                }
-                case "128":
-                {
-                    if (Int128.TryParse(numberString, out var number))
-                    {
-                        await SendMessage(context, [number.ToString(format)]);
-                        return;
-                    }
-
-                    break;
-                }
-            }
-
             await SendArgumentError(context);
+            return;
+        }
+        
+        var lengthString = commandContext.GetFlag("--length", "32") ?? "32";
+
+        var format = target switch
+        {
+            "hex" => "X",
+            "bin" => "B",
+            "dec" => "D",
+            _ => "X"
+        };
+
+        var signed = commandContext.HasFlag("--signed");
+        var isFloat = commandContext.HasFlag("--float");
+
+        var converters = isFloat
+            ? FloatConverters
+            : signed
+                ? SignedConverters
+                : UnsignedConverters;
+
+        if (!converters.TryGetValue(lengthString, out var converter))
+        {
+            await SendMessage(context, ["不支持的长度"]);
+            return;
+        }
+
+        try
+        {
+            var value = converter(numberString);
+            await SendMessage(context, [value.ToString(format, null)]);
+        }
+        catch (FormatException)
+        {
+            await SendMessage(context, ["输入格式有误"]);
+        }
+        catch (OverflowException)
+        {
+            await SendMessage(context, ["溢出"]);
         }
     }
 }

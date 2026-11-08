@@ -18,12 +18,14 @@ public class SearchCommand : MaiCommandBase
             new FlagSpec
             {
                 ShortName = "-b",
-                LongName = "--bpm"
+                LongName = "--bpm",
+                TakesValue = true
             },
             new FlagSpec
             {
                 ShortName = "-a",
-                LongName = "--artist"
+                LongName = "--artist",
+                TakesValue = true
             }
         ];
     }

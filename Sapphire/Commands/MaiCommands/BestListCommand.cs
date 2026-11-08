@@ -65,7 +65,8 @@ public class BestListCommand : MaiCommandBase
             new FlagSpec
             {
                 LongName = "--user",
-                ShortName = "-u"
+                ShortName = "-u",
+                TakesValue = true
             }
         ];
     }

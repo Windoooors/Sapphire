@@ -14,7 +14,8 @@ public class BindCommand : MaiCommandBase
             new()
             {
                 LongName = "--divingfish",
-                ShortName = "-df"
+                ShortName = "-df",
+                TakesValue = false
             }
         };
 

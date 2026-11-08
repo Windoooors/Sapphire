@@ -18,7 +18,8 @@ public class ExportCommand : MaiCommandBase
             new FlagSpec
             {
                 ShortName = "-df",
-                LongName = "--diving-fish"
+                LongName = "--diving-fish",
+                TakesValue = false
             }
         ];
     }

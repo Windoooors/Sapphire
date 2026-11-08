@@ -22,12 +22,14 @@ public class UpdateScoreCommand : MaiCommandBase
             new FlagSpec
             {
                 LongName = "--diving-fish",
-                ShortName = "-df"
+                ShortName = "-df",
+                TakesValue = false
             },
             new FlagSpec
             {
                 LongName = "--wahlap",
-                ShortName = "-wl"
+                ShortName = "-wl",
+                TakesValue = false
             }
         ];
     }

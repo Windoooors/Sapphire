@@ -7,10 +7,10 @@ namespace Sapphire.Commands;
 
 public class FlagSpec
 {
-    public string Name => LongName ?? ShortName;
+    public string Name => LongName;
     public required string ShortName { get; set; }
     public required string LongName { get; set; }
-    public bool TakesValue { get; set; } = true;
+    public required bool TakesValue { get; set; }
 }
 
 public class CommandContext
