@@ -1,37 +1,38 @@
 using EleCho.GoCqHttpSdk.Post;
+using Sapphire.Utils;
 
 namespace Sapphire.Commands;
 
-public class NrConvertCommand : CommandBase // NR stands for Number Representation
+public class IcsAssistantCommand : CommandBase
 {
     private static readonly Dictionary<string, Func<string, IFormattable>> FloatConverters = new()
     {
-        ["32"] = s => Convert.ToSingle(s),
-        ["64"] = s => Convert.ToDouble(s)
+        ["32"] = s => FloatConverter.ToSingle(s),
+        ["64"] = s => FloatConverter.ToDouble(s)
     };
 
     private static readonly Dictionary<string, Func<string, IFormattable>> SignedConverters = new()
     {
-        ["8"] = s => Convert.ToSByte(s),
-        ["16"] = s => Convert.ToInt16(s),
-        ["32"] = s => Convert.ToInt32(s),
-        ["64"] = s => Convert.ToInt64(s)
+        ["8"] = s => IntegerConverter.ToSByte(s),
+        ["16"] = s => IntegerConverter.ToInt16(s),
+        ["32"] = s => IntegerConverter.ToInt32(s),
+        ["64"] = s => IntegerConverter.ToInt64(s)
     };
 
     private static readonly Dictionary<string, Func<string, IFormattable>> UnsignedConverters = new()
     {
-        ["8"] = s => Convert.ToByte(s),
-        ["16"] = s => Convert.ToUInt16(s),
-        ["32"] = s => Convert.ToUInt32(s),
-        ["64"] = s => Convert.ToUInt64(s)
+        ["8"] = s => IntegerConverter.ToByte(s),
+        ["16"] = s => IntegerConverter.ToUInt16(s),
+        ["32"] = s => IntegerConverter.ToUInt32(s),
+        ["64"] = s => IntegerConverter.ToUInt64(s)
     };
 
-    public NrConvertCommand()
+    public IcsAssistantCommand()
     {
-        DirectCommandHeads = ["nrc", "数制转换"];
-        CommandHeads = ["nrc"];
+        DirectCommandHeads = ["ics", "计基外挂"];
+        CommandHeads = ["ics"];
 
-        ActivationSettingsIdentifier = "nrc.enabled";
+        ActivationSettingsIdentifier = "ics.enabled";
 
         SupportedFlags =
         [
@@ -77,14 +78,6 @@ public class NrConvertCommand : CommandBase // NR stands for Number Representati
 
         var lengthString = commandContext.GetFlag("--length", "32") ?? "32";
 
-        var format = target switch
-        {
-            "hex" => "X",
-            "bin" => "B",
-            "dec" => "D",
-            _ => "X"
-        };
-
         var signed = commandContext.HasFlag("--signed");
         var isFloat = commandContext.HasFlag("--float");
 
@@ -106,16 +99,43 @@ public class NrConvertCommand : CommandBase // NR stands for Number Representati
 
             if (isFloat)
             {
-                var result = format switch
-                {
-                    "X" => BitConverter.SingleToInt32Bits((float)value).ToString("X"),
-                    _ => Convert.ToString(BitConverter.SingleToInt32Bits((float)value), 2)
-                };
+                var isSingle = value is float;
+
+                string result;
+
+                if (isSingle)
+                    result = target switch
+                    {
+                        "hex" => FloatConverter.ToHex((float)value),
+                        "bin" => FloatConverter.ToBinary((float)value),
+                        _ => FloatConverter.ToDecimal((float)value)
+                    };
+                else
+                    result = target switch
+                    {
+                        "hex" => FloatConverter.ToHex((double)value),
+                        "bin" => FloatConverter.ToBinary((double)value),
+                        _ => FloatConverter.ToDecimal((double)value)
+                    };
+
                 await SendMessage(context, [result]);
             }
             else
             {
-                await SendMessage(context, [value.ToString(format, null)]);
+                await SendMessage(context, [
+                    target switch
+                    {
+                        "hex" => "0x",
+                        "bin" => "0b",
+                        _ => ""
+                    } +
+                    value.ToString(target switch
+                    {
+                        "hex" => "X",
+                        "bin" => "B",
+                        _ => "D"
+                    }, null)
+                ]);
             }
         }
         catch (FormatException)

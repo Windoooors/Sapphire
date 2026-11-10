@@ -18,7 +18,8 @@ public static class Program
 
     private static readonly CommandBase[] GroupCommands =
     [
-        new PingCommand(), new MaiCommand(), new SettingsCommand(), new ConfirmationCommand(), new NrConvertCommand(),
+        new PingCommand(), new MaiCommand(), new SettingsCommand(), new ConfirmationCommand(),
+        new IcsAssistantCommand(),
         new GayFactor(), new GroupMemberCommand()
     ];
 

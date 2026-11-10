@@ -186,13 +186,13 @@ public static class SettingsItems
         },
         new()
         {
-            Name = "数制转换",
+            Name = "计基助手",
             Items =
             [
                 new SettingsItem
                 {
                     DisplayName = "启用",
-                    Identifier = "nrc.enabled"
+                    Identifier = "ics.enabled"
                 }
             ]
         },
@@ -236,7 +236,7 @@ public static class SettingsItems
         { "mai_wck_logout.enabled", true },
         { "mai_export.enabled", true },
         { "group_member_search.enabled", true },
-        { "nrc.enabled", true },
+        { "ics.enabled", true },
         { "marry.enabled", true },
         { "group_member_alias.enabled", true },
         { "rape.enabled", true },
