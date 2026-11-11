@@ -2,6 +2,7 @@ using EleCho.GoCqHttpSdk.Message;
 using EleCho.GoCqHttpSdk.Post;
 using Sapphire.Data.Mai;
 using Sapphire.Data.Mai.Dtos;
+using Sapphire.Environments;
 using Sapphire.ImageGeneration;
 using Sapphire.ImageGeneration.ImageGenerators.MaiCommandImageGenerators;
 
@@ -69,7 +70,12 @@ public class InfoCommand : MaiCommandBase
 
         if (songs.Length > 1)
         {
-            await SendMessage(context, [BuildSongListString(songs, $"info SID{songs[0].SapphireId}", "查询列表中第一首乐曲的信息")]);
+            await SendMessage(context,
+            [
+                BuildSongListString(songs,
+                    $"{SpEnvironmentHandler.Environment.Sapphire.CommandPrefixes[0]} mai info SID{songs[0].SapphireId}",
+                    "查询列表中第一首乐曲的信息")
+            ]);
             return;
         }
 

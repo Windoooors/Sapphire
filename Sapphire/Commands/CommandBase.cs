@@ -99,6 +99,21 @@ public abstract class CommandBase
         await SendMessage(context, ["您无权执行该命令"]);
     }
 
+    public void OnExitCall()
+    {
+        foreach (var commandBase in SubCommands)
+        {
+            commandBase.OnExitCall();
+        }
+        
+        OnExit();
+    }
+
+    protected virtual void OnExit()
+    {
+        
+    }
+
     protected static async Task SendMessage(long id, CqMessage message, bool isGroup = true)
     {
         var session = Program.BotSessionHandler?.Session;

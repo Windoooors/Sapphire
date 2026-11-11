@@ -7,7 +7,7 @@ namespace Sapphire.Commands.GroupMemberCommands;
 
 public class MarryCommand : GroupMemberCommandBase
 {
-    private static readonly Dictionary<long, Dictionary<long, long>> Pairings = new();
+    private static readonly Dictionary<long, Dictionary<long, Pairing>> Pairings = new();
     private static readonly Lock PairingLock = new();
     private static readonly Random Random = new();
 
@@ -17,15 +17,37 @@ public class MarryCommand : GroupMemberCommandBase
         CommandHeads = ["娶", "嫁", "娶群友"];
 
         ActivationSettingsIdentifier = "marry.enabled";
-
-        Program.Timer.DayChanged += ClearAllPairings;
     }
 
-    private static void ClearAllPairings()
+    public override void Initialize()
     {
+        base.Initialize();
+
+        LoadPairings();
+    }
+
+    private static void LoadPairings()
+    {
+        if (GroupMemberDataManager.Instance == null)
+            return;
+
+        var marriages = GroupMemberDataManager.Instance.GetMarriages();
+
         lock (PairingLock)
         {
             Pairings.Clear();
+
+            foreach (var marriage in marriages)
+            {
+                if (!Pairings.TryGetValue(marriage.GroupId, out var pairs))
+                {
+                    pairs = new Dictionary<long, Pairing>();
+                    Pairings[marriage.GroupId] = pairs;
+                }
+
+                pairs[marriage.UserId] = new Pairing(marriage.PartnerId, marriage.MarriedAt);
+                pairs[marriage.PartnerId] = new Pairing(marriage.UserId, marriage.MarriedAt);
+            }
         }
     }
 
@@ -64,7 +86,7 @@ public class MarryCommand : GroupMemberCommandBase
             return;
         }
 
-        var partnerId = EnsurePairsAndGetPartner(groupId, group, userId);
+        var partnerId = await EnsurePairsAndGetPartner(groupId, group, userId);
 
         if (partnerId is null)
         {
@@ -74,27 +96,49 @@ public class MarryCommand : GroupMemberCommandBase
 
         if (!await SendMessage(groupMessageContext, partnerId.Value))
         {
-            RemovePairing(groupId, userId, partnerId.Value);
+            await RemovePairing(groupId, userId, partnerId.Value);
             await Process(context);
         }
     }
 
-    private static long? EnsurePairsAndGetPartner(
+    private static async Task<long?> EnsurePairsAndGetPartner(
         long groupId,
         IEnumerable<long> groupMembers,
         long currentUserId)
     {
+        var manager = GroupMemberDataManager.Instance;
+
+        if (manager == null)
+            return null;
+
+        List<(long UserId, long PartnerId)> addedPairs;
+        List<(long UserId, long PartnerId)> removedPairs;
+        (long UserId, long PartnerId)? expiredPair = null;
+        long? partnerId;
+        var marriedAt = DateTime.UtcNow;
+
         lock (PairingLock)
         {
+            if (Pairings.TryGetValue(groupId, out var existingPairs) &&
+                existingPairs.TryGetValue(currentUserId, out var currentPairing) &&
+                manager.IsMarriageExpired(currentPairing.MarriedAt))
+            {
+                expiredPair = (currentUserId, currentPairing.PartnerId);
+                RemovePairFromMemory(existingPairs, currentUserId, currentPairing.PartnerId);
+
+                if (existingPairs.Count == 0)
+                    Pairings.Remove(groupId);
+            }
+
             if (!Pairings.TryGetValue(groupId, out var pairs))
             {
-                pairs = new Dictionary<long, long>();
+                pairs = new Dictionary<long, Pairing>();
                 Pairings[groupId] = pairs;
             }
 
             var members = groupMembers.Distinct().ToHashSet();
 
-            CleanupInvalidPairings(members, pairs);
+            removedPairs = CleanupInvalidPairings(members, pairs);
 
             var unpaired = members
                 .Where(id => !pairs.ContainsKey(id))
@@ -102,65 +146,100 @@ public class MarryCommand : GroupMemberCommandBase
 
             Shuffle(unpaired);
 
+            addedPairs = [];
+
             for (var i = 0; i + 1 < unpaired.Count; i += 2)
             {
                 var a = unpaired[i];
                 var b = unpaired[i + 1];
 
-                pairs[a] = b;
-                pairs[b] = a;
+                pairs[a] = new Pairing(b, marriedAt);
+                pairs[b] = new Pairing(a, marriedAt);
+
+                addedPairs.Add((a, b));
             }
 
-            return pairs.TryGetValue(currentUserId, out var partnerId)
-                ? partnerId
+            partnerId = pairs.TryGetValue(currentUserId, out var pairPartner)
+                ? pairPartner.PartnerId
                 : null;
         }
+
+        if (expiredPair is { } expired)
+            await manager.RemoveMarriage(groupId, expired.UserId, expired.PartnerId);
+
+        foreach (var pair in removedPairs.Distinct())
+            await manager.RemoveMarriage(groupId, pair.UserId, pair.PartnerId);
+
+        if (addedPairs.Count > 0)
+            await manager.AddMarriages(groupId, addedPairs, marriedAt);
+
+        return partnerId;
     }
 
-    private static void CleanupInvalidPairings(
+    private static List<(long UserId, long PartnerId)> CleanupInvalidPairings(
         HashSet<long> members,
-        Dictionary<long, long> pairs)
+        Dictionary<long, Pairing> pairs)
     {
+        var removedPairs = new List<(long UserId, long PartnerId)>();
+
         foreach (var pair in pairs.ToArray())
         {
             var userId = pair.Key;
-            var partnerId = pair.Value;
+            var partnerId = pair.Value.PartnerId;
 
             var invalid =
                 userId == partnerId ||
                 !members.Contains(userId) ||
                 !members.Contains(partnerId) ||
-                !pairs.TryGetValue(partnerId, out var reversePartnerId) ||
-                reversePartnerId != userId;
+                !pairs.TryGetValue(partnerId, out var reversePairing) ||
+                reversePairing.PartnerId != userId;
 
             if (!invalid)
                 continue;
 
             pairs.Remove(userId);
+            removedPairs.Add((userId, partnerId));
 
-            if (pairs.TryGetValue(partnerId, out var reverseId) &&
-                reverseId == userId)
+            if (pairs.TryGetValue(partnerId, out var reversePairingToRemove) &&
+                reversePairingToRemove.PartnerId == userId)
                 pairs.Remove(partnerId);
         }
+
+        return removedPairs;
     }
 
-    private static void RemovePairing(long groupId, long userId, long partnerId)
+    private static async Task RemovePairing(long groupId, long userId, long partnerId)
     {
         lock (PairingLock)
         {
-            if (!Pairings.TryGetValue(groupId, out var pairs))
-                return;
+            if (Pairings.TryGetValue(groupId, out var pairs))
+            {
+                RemovePairFromMemory(pairs, userId, partnerId);
 
-            if (pairs.TryGetValue(userId, out var p1) && p1 == partnerId)
-                pairs.Remove(userId);
-
-            if (pairs.TryGetValue(partnerId, out var p2) && p2 == userId)
-                pairs.Remove(partnerId);
-
-            if (pairs.Count == 0)
-                Pairings.Remove(groupId);
+                if (pairs.Count == 0)
+                    Pairings.Remove(groupId);
+            }
         }
+
+        if (GroupMemberDataManager.Instance is { } manager)
+            await manager.RemoveMarriage(groupId, userId, partnerId);
     }
+
+    private static void RemovePairFromMemory(
+        Dictionary<long, Pairing> pairs,
+        long userId,
+        long partnerId)
+    {
+        if (pairs.TryGetValue(userId, out var userPairing) &&
+            userPairing.PartnerId == partnerId)
+            pairs.Remove(userId);
+
+        if (pairs.TryGetValue(partnerId, out var partnerPairing) &&
+            partnerPairing.PartnerId == userId)
+            pairs.Remove(partnerId);
+    }
+
+    private sealed record Pairing(long PartnerId, DateTime MarriedAt);
 
     private static void Shuffle<T>(IList<T> list)
     {

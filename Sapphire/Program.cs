@@ -1,4 +1,5 @@
-﻿using EleCho.GoCqHttpSdk;
+﻿using System.Text.RegularExpressions;
+using EleCho.GoCqHttpSdk;
 using Sapphire.Commands;
 using Sapphire.Data.Settings;
 using Sapphire.Environments;
@@ -31,7 +32,15 @@ public static class Program
     {
         var keepAlive = new ManualResetEvent(false);
 
-        AppDomain.CurrentDomain.ProcessExit += (_, _) => keepAlive.Set();
+        AppDomain.CurrentDomain.ProcessExit += (_, _) =>
+        {
+            foreach (var groupCommand in GroupCommands)
+            {
+                groupCommand.OnExitCall();
+            }
+
+            keepAlive.Set();
+        };
 
         LoggerInitializer.Initialize();
 

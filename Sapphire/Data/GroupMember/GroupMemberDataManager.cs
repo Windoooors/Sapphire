@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Sapphire.Data.GroupMember.Database;
 using Sapphire.Data.GroupMember.Dtos;
+using Sapphire.Environments;
 using Sapphire.Utils;
 
 namespace Sapphire.Data.GroupMember;
@@ -34,6 +35,70 @@ public class GroupMemberDataManager
     public List<GroupMemberAliasDto> AliasList { get; }
 
     public Dictionary<long, HashSet<long>> UserPool { get; } = [];
+
+    public List<GroupMemberMarriageDto> GetMarriages()
+    {
+        using var context = new GroupMemberDataContext();
+
+        var dayStart = GetCurrentDayStart();
+
+        context.GroupMemberMarriages.Where(x => x.MarriedAt < dayStart).ExecuteDelete();
+
+        return context.GroupMemberMarriages.AsNoTracking()
+            .Where(x => x.MarriedAt >= dayStart)
+            .ToList();
+    }
+
+    public async Task AddMarriages(long groupId, IEnumerable<(long UserId, long PartnerId)> marriages,
+        DateTime marriedAt)
+    {
+        await using var context = new GroupMemberDataContext();
+
+        foreach (var marriage in marriages)
+        {
+            context.GroupMemberMarriages.Add(new GroupMemberMarriageDto
+            {
+                GroupId = groupId,
+                UserId = marriage.UserId,
+                PartnerId = marriage.PartnerId,
+                MarriedAt = marriedAt
+            });
+        }
+
+        await context.SaveChangesAsync();
+    }
+
+    public async Task RemoveMarriage(long groupId, long userId, long partnerId)
+    {
+        await using var context = new GroupMemberDataContext();
+
+        var marriages = await context.GroupMemberMarriages
+            .Where(x =>
+                x.GroupId == groupId &&
+                ((x.UserId == userId && x.PartnerId == partnerId) ||
+                 (x.UserId == partnerId && x.PartnerId == userId)))
+            .ToListAsync();
+
+        if (marriages.Count == 0)
+            return;
+
+        context.GroupMemberMarriages.RemoveRange(marriages);
+
+        await context.SaveChangesAsync();
+    }
+
+    public bool IsMarriageExpired(DateTime marriedAt)
+    {
+        return marriedAt < GetCurrentDayStart();
+    }
+
+    private static DateTime GetCurrentDayStart()
+    {
+        var now = DateTime.UtcNow;
+        var dayStart = now.Date.Add(SpEnvironmentHandler.Environment.Sapphire.UtcDayTickTime.ToTimeSpan());
+
+        return now < dayStart ? dayStart.AddDays(-1) : dayStart;
+    }
 
     public async Task RemoveUserFromPool(long userId, long groupId)
     {

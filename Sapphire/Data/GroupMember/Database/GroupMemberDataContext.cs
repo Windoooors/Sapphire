@@ -8,6 +8,7 @@ public class GroupMemberDataContext : DbContext
 {
     public DbSet<GroupMemberAliasDto> GroupMemberAliases { get; set; }
     public DbSet<GroupMemberDto> GroupMembers { get; set; }
+    public DbSet<GroupMemberMarriageDto> GroupMemberMarriages { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -16,6 +17,9 @@ public class GroupMemberDataContext : DbContext
 
         var memberEntityBuilder = modelBuilder.Entity<GroupMemberDto>();
         memberEntityBuilder.HasKey(x => x.MemberId);
+
+        var marriageEntityBuilder = modelBuilder.Entity<GroupMemberMarriageDto>();
+        marriageEntityBuilder.HasKey(x => x.MarriageId);
     }
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
