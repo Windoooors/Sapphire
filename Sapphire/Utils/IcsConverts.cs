@@ -103,7 +103,7 @@ public static class FloatConverter
         if (value == 0f && BitConverter.SingleToInt32Bits(value) < 0)
             return "-0";
 
-        return value.ToString("R", Invariant);
+        return value.ToString("G9", Invariant);
     }
 
     public static string ToDecimal(double value)
@@ -120,7 +120,7 @@ public static class FloatConverter
         if (value == 0d && BitConverter.DoubleToInt64Bits(value) < 0)
             return "-0";
 
-        return value.ToString("R", Invariant);
+        return value.ToString("G17", Invariant);
     }
 
     public static string ToBinary(float value)
