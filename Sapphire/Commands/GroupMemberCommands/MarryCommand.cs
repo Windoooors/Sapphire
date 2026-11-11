@@ -111,25 +111,13 @@ public class MarryCommand : GroupMemberCommandBase
         if (manager == null)
             return null;
 
-        List<(long UserId, long PartnerId)> addedPairs;
         List<(long UserId, long PartnerId)> removedPairs;
-        (long UserId, long PartnerId)? expiredPair = null;
+        (long UserId, long PartnerId)? addedPair = null;
         long? partnerId;
         var marriedAt = DateTime.UtcNow;
 
         lock (PairingLock)
         {
-            if (Pairings.TryGetValue(groupId, out var existingPairs) &&
-                existingPairs.TryGetValue(currentUserId, out var currentPairing) &&
-                manager.IsMarriageExpired(currentPairing.MarriedAt))
-            {
-                expiredPair = (currentUserId, currentPairing.PartnerId);
-                RemovePairFromMemory(existingPairs, currentUserId, currentPairing.PartnerId);
-
-                if (existingPairs.Count == 0)
-                    Pairings.Remove(groupId);
-            }
-
             if (!Pairings.TryGetValue(groupId, out var pairs))
             {
                 pairs = new Dictionary<long, Pairing>();
@@ -140,38 +128,45 @@ public class MarryCommand : GroupMemberCommandBase
 
             removedPairs = CleanupInvalidPairings(members, pairs);
 
-            var unpaired = members
-                .Where(id => !pairs.ContainsKey(id))
-                .ToList();
-
-            Shuffle(unpaired);
-
-            addedPairs = [];
-
-            for (var i = 0; i + 1 < unpaired.Count; i += 2)
+            if (pairs.TryGetValue(currentUserId, out var currentPairing) &&
+                manager.IsMarriageExpired(currentPairing.MarriedAt))
             {
-                var a = unpaired[i];
-                var b = unpaired[i + 1];
-
-                pairs[a] = new Pairing(b, marriedAt);
-                pairs[b] = new Pairing(a, marriedAt);
-
-                addedPairs.Add((a, b));
+                removedPairs.Add((currentUserId, currentPairing.PartnerId));
+                RemovePairFromMemory(pairs, currentUserId, currentPairing.PartnerId);
             }
 
-            partnerId = pairs.TryGetValue(currentUserId, out var pairPartner)
-                ? pairPartner.PartnerId
-                : null;
-        }
+            if (pairs.TryGetValue(currentUserId, out var activePairing))
+            {
+                partnerId = activePairing.PartnerId;
+            }
+            else
+            {
+                var candidates = members
+                    .Where(id => id != currentUserId && !pairs.ContainsKey(id))
+                    .ToList();
 
-        if (expiredPair is { } expired)
-            await manager.RemoveMarriage(groupId, expired.UserId, expired.PartnerId);
+                if (candidates.Count == 0)
+                {
+                    partnerId = null;
+                }
+                else
+                {
+                    var candidateId = candidates[Random.Next(candidates.Count)];
+
+                    pairs[currentUserId] = new Pairing(candidateId, marriedAt);
+                    pairs[candidateId] = new Pairing(currentUserId, marriedAt);
+
+                    addedPair = (currentUserId, candidateId);
+                    partnerId = candidateId;
+                }
+            }
+        }
 
         foreach (var pair in removedPairs.Distinct())
             await manager.RemoveMarriage(groupId, pair.UserId, pair.PartnerId);
 
-        if (addedPairs.Count > 0)
-            await manager.AddMarriages(groupId, addedPairs, marriedAt);
+        if (addedPair is { } added)
+            await manager.AddMarriages(groupId, [added], marriedAt);
 
         return partnerId;
     }
@@ -240,15 +235,6 @@ public class MarryCommand : GroupMemberCommandBase
     }
 
     private sealed record Pairing(long PartnerId, DateTime MarriedAt);
-
-    private static void Shuffle<T>(IList<T> list)
-    {
-        for (var i = list.Count - 1; i > 0; i--)
-        {
-            var j = Random.Next(i + 1);
-            (list[i], list[j]) = (list[j], list[i]);
-        }
-    }
 
     private async Task<bool> SendMessage(
         CqGroupMessagePostContext groupMessageContext,

@@ -199,12 +199,6 @@ public class GroupMemberDataManager
 
         await using var context = new GroupMemberDataContext();
 
-        var user = await context.GroupMemberAliases.FirstOrDefaultAsync(x =>
-            x.GroupId == groupId && x.UserId == userId);
-
-        if (user == null)
-            return false;
-
         var result = new GroupMemberAliasDto
         {
             Alias = alias,

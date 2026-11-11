@@ -1,5 +1,6 @@
 using EleCho.GoCqHttpSdk.Message;
 using EleCho.GoCqHttpSdk.Post;
+using Sapphire.Environments;
 
 namespace Sapphire.Commands;
 
@@ -23,7 +24,7 @@ public class ConfirmationCommand : CommandBase
         var id = replyMessage.Id ?? 0;
         if (!Items.TryGetValue(id, out var item)) return;
 
-        if (context.UserId == item.TargetUserId)
+        if (context.UserId == item.TargetUserId || IsBotAdministrator(context.UserId))
         {
             if (context.Message.Text.Trim().Equals("确定"))
             {
