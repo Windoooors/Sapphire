@@ -17,7 +17,7 @@ public static class Program
     private static readonly CommandBase[] GroupCommands =
     [
         new PingCommand(), new MaiCommand(), new SettingsCommand(), new ConfirmationCommand(),
-        new IcsAssistantCommand(), new WhoAmICommand(),
+        new IcsAssistantCommand(), new WhoAmICommand(), new MigrateCommand(),
         new GayFactor(), new GroupMemberCommand()
     ];
 
@@ -42,6 +42,15 @@ public static class Program
                 Log.Warning(ex, "Error occurred while stopping the bot client");
             }
 
+            try
+            {
+                MigrationServer.StopAsync().GetAwaiter().GetResult();
+            }
+            catch (Exception ex)
+            {
+                Log.Warning(ex, "Error occurred while stopping the migration server");
+            }
+
             keepAlive.Set();
         };
 
@@ -64,6 +73,15 @@ public static class Program
         }
 
         Log.Information("Commands initialized");
+
+        try
+        {
+            await MigrationServer.StartAsync();
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Failed to start the migration WebSocket server");
+        }
 
         try
         {

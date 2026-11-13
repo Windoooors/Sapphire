@@ -23,7 +23,8 @@ public static class SpEnvironmentHandler
                 Mai = new MaiEnvironment(),
                 WahlapConnectiveKits = new WahlapConnectiveKitsEnvironment(),
                 ImageGeneration = new ImageGenerationEnvironment(),
-                Sapphire = new SapphireEnvironment()
+                Sapphire = new SapphireEnvironment(),
+                Migration = new MigrationEnvironment()
             };
 
             File.WriteAllText(path, TomlSerializer.Serialize(Environment));

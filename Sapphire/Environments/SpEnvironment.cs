@@ -12,4 +12,5 @@ public record SpEnvironment
     public required WahlapConnectiveKitsEnvironment WahlapConnectiveKits { get; init; } = new();
     public required ImageGenerationEnvironment ImageGeneration { get; init; } = new();
     public required SapphireEnvironment Sapphire { get; init; } = new();
+    public required MigrationEnvironment Migration { get; init; } = new();
 }

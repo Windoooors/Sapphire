@@ -10,6 +10,7 @@ Sapphire 是一个 QQ 机器人（群聊 + 单聊），通过 **官方 QQ 机器
 - 中二节奏（Chunithm）：曲目数据（功能仍在搭建）。
 - 群友：别名、搜索、娶群友、透群友、婚姻状态。
 - 娱乐/工具：Ping、WhoAmI、Gay 指数、计基助手（IEEE 754 浮点与整数进制转换）、按群/按人设置开关。
+- 旧库迁移：`migrate <QQ号> --group <旧群号>`，通过独立的 `Sapphire.Migration` 项目把旧 NapCat 库中该 QQ 的成绩、别名、群成员和设置迁移到新库，完成后主 bot 自动重建别名索引。
 
 技术栈：.NET 10（`net10.0`）、C#（file-scoped namespace、nullable、collection expressions）、EF Core 10 + PostgreSQL（Npgsql）、Tomlyn（TOML 配置）、Serilog（控制台 + 按天滚动文件）、SixLabors.ImageSharp 4（绘图）、QQBot.Net（官方 QQ Bot API）。
 
@@ -26,6 +27,7 @@ Sapphire 是一个 QQ 机器人（群聊 + 单聊），通过 **官方 QQ 机器
 | 仅编译项目 | `dotnet build Sapphire/Sapphire.csproj` |
 | 本地运行 | `dotnet run --project Sapphire/Sapphire.csproj` |
 | Release 发布 | `dotnet publish Sapphire/Sapphire.csproj -c Release -o out` |
+| 运行迁移服务 | 复制 `Sapphire.Migration/config.example.toml` 到输出目录 `config.toml` 后 `dotnet run --project Sapphire.Migration/Sapphire.Migration.csproj` |
 | Docker 构建 | `git submodule update --init --recursive && docker build -f Sapphire/Dockerfile -t sapphire .` |
 | 新增 EF 迁移 | 见[数据库与迁移](#数据库与迁移) |
 
@@ -63,7 +65,18 @@ Sapphire/
 ├── ImageGeneration/            # ImageSharp 绘图：调色板、字体、图片生成器
 ├── Migrations/                 # EF Core 迁移（按 DbContext 分目录）
 ├── UserSettings/               # 设置项定义（标识符、显示名、默认值）
-└── Utils/                      # BotClient、解析器、日志、Timer、搜索归一化、进制转换
+└── Utils/                      # BotClient、MigrationServer、解析器、日志、Timer、搜索归一化、进制转换
+```
+
+独立项目：
+
+```
+Sapphire.Migration/             # 旧库迁移工具（独立进程，Npgsql + WebSocket 客户端）
+├── Program.cs                  # 连接主 bot，接收迁移请求、回传结果
+├── MigrationConfig.cs          # [Database] / [LegacyDatabase] / [Bot] 配置
+├── MigrationProtocol.cs        # 与主 bot 的 WS JSON 协议
+├── MigrationHandler.cs         # 旧库 → 新库的 SQL 迁移
+└── config.example.toml         # 复制为 config.toml 后填写连接串
 ```
 
 ## 运行配置
@@ -79,6 +92,7 @@ Sapphire/
 - `[WahlapConnectiveKits]`：`WckUrl`（WCK 服务地址，默认 `http://10.8.0.2:10492`）。
 - `[ImageGeneration]`：配色、`PreloadCoverImages`、`MaxParallelGenerationTaskCount`。
 - `[Sapphire]`：`BotName`、`AdministratorOpenIds`（canonical openid 字符串数组）、`CommandPrefixes`、`UtcDayTickTime`。
+- `[Migration]`：`Enabled`（默认 false）、`Port`（默认 5201）、`Token`、`AllowAllUsers`（默认 false）。启用后主 bot 在 `127.0.0.1:<Port>/migration/` 启动 WebSocket 服务端。
 - `[NapCat]`、`[Sapphire] AdministratorQqId`、`[Sapphire] BotQqId`：**仅为兼容旧 config.toml 保留的反序列化字段，代码不再使用**；新配置不要填。
 
 注意：
@@ -237,6 +251,30 @@ private static readonly CommandBase[] GroupCommands =
 - 从旧 NapCat 版迁移时：歌曲/谱面/版本/分类/歌曲别名可以直接复制；用户成绩、设置、群友别名/婚姻的旧主键是 QQ 号，无法映射到 openid，测试环境选择重新生成/重新绑定。
 - 时间统一用 UTC（`DateTime.UtcNow`、`UtcDayTickTime`）；「自然日」边界由 `UtcDayTickTime` 决定。
 
+## 旧库迁移
+
+主 bot 侧：
+
+- `[Migration] Enabled = true` 时，`MigrationServer` 在 `127.0.0.1:<Port>/migration/` 启动 WebSocket 服务端；`Port` 默认 5201，`Token` 可选。
+- 指令 `migrate <QQ号> --group <旧群号>`；**`--group` 必填**，值是旧 NapCat 库里的 QQ 群号，不是新 `group_openid`。
+- 默认只有 bot 管理员/群主/群管理员能执行；`[Migration] AllowAllUsers = true` 才允许所有群成员。QQ 号本身没有二次校验，开启前确认群环境可信。
+- 请求携带 `QqNumber / CanonicalUserId / SceneUserId / ChatId / LegacyGroupId`；迁移项目完成后回传计数，主 bot 调 `GroupMemberDataManager.ReloadAndBake()` 和 `SettingsDataManager.Reload()`，别名/群成员/设置立即生效。
+
+迁移项目 `Sapphire.Migration`：
+
+- 独立进程，配置是它输出目录下的 `config.toml`（从 `config.example.toml` 复制），包含：
+  - `[Database]` 新库连接串
+  - `[LegacyDatabase]` 旧 NapCat 库连接串
+  - `[Bot] WebSocketUrl`（默认 `ws://127.0.0.1:5201/migration/`）和 `Token`（与主 bot 的 `[Migration] Token` 一致）
+- 用 Npgsql 直接读写，不引用 EF 模型；启动后连接主 bot，断线每 5 秒重连。
+- 迁移内容：
+  - 旧 `MaiUserPlayRecords`（按 QQ）→ 新 `MaiUserPlayRecords`（按 canonical）；新库已有记录时**覆盖**。
+  - 旧 `GroupMemberAliases` 中 `GroupId = 旧群号` 的别名 → 新库当前 `ChatId` 群，`UserId = canonical`，`SceneUserId = 当前 scene openid`；重复别名跳过。
+  - 旧 `GroupMemberAliases` 对应的用户 → 新 `GroupMembers` 当前群成员池（不存在时插入）。
+  - 旧 `SettingsItems`：单聊设置（`IsGroup=false, ChatId=QQ`）→ 新库 `IsGroup=false, ChatId=canonical`；群设置（`ChatId=旧群号`）→ 新库 `IsGroup=true, ChatId=当前群 openid`；相同主键 upsert。
+  - 婚姻不迁移：旧库 `PartnerId` 也是 QQ 号，需要双方 QQ→canonical 映射，目前没有该映射表。
+- 同一个 QQ 可以对多个旧群分别执行迁移；成绩会被重复覆盖，别名会合并到当前群。
+
 ## 图片生成与发送
 
 - `ImageGeneration/ColorPalette.cs` 静态构造时从 `AppContext.BaseDirectory/Resources/Fonts/` 读取 `light.otf`、`normal.otf`、`regular.otf`、`heavy.otf`、`fallback.ttf`、`emoji.ttf`；缺文件会在首次画图时抛异常。
@@ -298,7 +336,7 @@ dotnet run --project Sapphire/Sapphire.csproj
 - `CommandBase.Receive` 的分支依据是「有没有 flag / 有没有位置参数」；只重写 `Process` 会导致带参数时落到基类默认回复 `dame`。
 - `CommandHeads` 与 `DirectCommandHeads` 是两套；只配一个时另一种调用形式不可用。
 - 前缀匹配区分大小写，lite 匹配不区分；`s` 与 `S` 不等价。
-- 设置项按「群」或「单聊用户」存储；私聊里改的设置不影响群。
+- 设置项按「群」或「单聊 canonical 用户」存储；私聊里改的设置不影响群。
 - `SettingsDataManager` 构造时把整张设置表读进内存，`SetValue` 会同时更新内存和数据库；绕过它直接改库不会即时生效。
 - `MaiDataManager` 的索引是常驻内存的；曲目或别名变化后需要重新烘焙（`BakeIndexingData`）或重启进程。
 - `GroupMemberDataManager.GetMarriages()` 会先删除当天之前的记录，依赖 `UtcDayTickTime`；改动婚姻逻辑时注意这个副作用。
@@ -307,6 +345,11 @@ dotnet run --project Sapphire/Sapphire.csproj
 - WCK 服务按 `openid` 索引 session（不是 QQ 号）；Sapphire 侧 `SessionLoginRequestDto` / `WckDataManager` 已同步，改动时两边一起改。
 - QQBot.Net 0.2.0 不解析 `username` / `member_nickname` / `member_role` / `union_openid`；本项目依赖 `third_party/QQBot.Net` fork 的 `SocketMessage.Author*` 属性。升级 SDK 时先同步 fork，不要直接换回 NuGet 包。
 - `MaiAliases.CreatorUserId` 在新库是 `text`；旧别名 creator 已置 `NULL`，只有 bot 管理员能删除旧别名。
+- `migrate` 的 `--group` 必填，值是**旧库 QQ 群号**；不要传新 `group_openid`。同一个 QQ 对多个旧群分别迁移会重复覆盖成绩、把别名合并到当前群。
+- 迁移服务必须先在主 bot 的 `[Migration] Enabled = true` 且 `Sapphire.Migration` 已连接；否则指令只会回“迁移服务未启用/未连接”。
+- 迁移项目直接写新库，主 bot 的内存索引不会自动更新；必须等回调里的 `ReloadAndBake()`/`Reload()` 执行。手工改库后也要重启或触发 reload。
+- 迁移会**覆盖**新库已有的 `MaiUserPlayRecords`；如果用户已经用 DivingFish/WCK 更新过成绩，先确认是否还要旧数据。婚姻不迁移。
+- `Sapphire.Migration` 的 `config.toml` 含新旧库口令，只放在输出目录（`bin/` 已忽略），不要提交；`config.example.toml` 可以提交。
 
 ## 参考
 

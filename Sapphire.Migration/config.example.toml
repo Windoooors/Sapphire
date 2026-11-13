@@ -1,0 +1,10 @@
+# 复制为 config.toml 后填写；config.toml 含数据库口令，不要提交。
+[Database]
+SqlConnectionString = "Host=127.0.0.1;Port=5432;Database=sapphire_official;Username=sapphire;Password=..."
+
+[LegacyDatabase]
+SqlConnectionString = "Host=127.0.0.1;Port=5432;Database=sapphire;Username=sapphire;Password=..."
+
+[Bot]
+WebSocketUrl = "ws://127.0.0.1:5201/migration/"
+Token = ""

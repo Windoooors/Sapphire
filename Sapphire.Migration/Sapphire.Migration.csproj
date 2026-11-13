@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <OutputType>Exe</OutputType>
+        <TargetFramework>net10.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <RootNamespace>Sapphire.Migration</RootNamespace>
+        <AssemblyName>Sapphire.Migration</AssemblyName>
+        <NuGetAudit>false</NuGetAudit>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Npgsql" Version="10.0.3"/>
+        <PackageReference Include="Tomlyn" Version="2.10.1"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <None Update="config.example.toml" CopyToOutputDirectory="PreserveNewest"/>
+    </ItemGroup>
+
+</Project>

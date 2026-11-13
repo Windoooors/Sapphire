@@ -24,32 +24,55 @@ public class SettingsDataManager
 
     public static SettingsDataManager? Instance { get; private set; }
 
+    /// <summary>
+    ///     迁移服务直接写库后，重新读取设置表。
+    /// </summary>
+    public void Reload()
+    {
+        using var context = new SettingsMetadataContext();
+
+        var values = context.SettingsItems.AsNoTracking()
+            .ToDictionary(x => (x.IsGroup, x.ChatId, x.Identifier), x => x.Value);
+
+        _settingValues.Clear();
+
+        foreach (var pair in values)
+            _settingValues[pair.Key] = pair.Value;
+    }
+
     public bool GetValue(MessageContext context, string identifier)
     {
         var defaultValue = SettingsItems.DefaultValues.GetValueOrDefault(identifier, true);
-        return _settingValues.GetValueOrDefault((context.IsGroup, context.ChatId, identifier), defaultValue);
+        return _settingValues.GetValueOrDefault((context.IsGroup, GetChatId(context), identifier), defaultValue);
     }
 
     public async Task SetValue(MessageContext context, string identifier, bool value)
     {
-        var key = (context.IsGroup, context.ChatId, identifier);
+        var chatId = GetChatId(context);
+        var key = (context.IsGroup, chatId, identifier);
 
-        await using var context_ = new SettingsMetadataContext();
+        await using var dbContext = new SettingsMetadataContext();
 
         _settingValues[key] = value;
 
-        var settingsItem = await context_.SettingsItems.FindAsync(context.IsGroup, context.ChatId, identifier);
+        var settingsItem = await dbContext.SettingsItems.FindAsync(context.IsGroup, chatId, identifier);
         if (settingsItem == null)
-            await context_.SettingsItems.AddAsync(new SettingsStorageItemDto
+            await dbContext.SettingsItems.AddAsync(new SettingsStorageItemDto
             {
                 Identifier = identifier,
-                ChatId = context.ChatId,
+                ChatId = chatId,
                 IsGroup = context.IsGroup,
                 Value = value
             });
         else
             settingsItem.Value = value;
 
-        await context_.SaveChangesAsync();
+        await dbContext.SaveChangesAsync();
+    }
+
+    private static string GetChatId(MessageContext context)
+    {
+        // 群设置按 group_openid；单聊设置按 canonical 用户 ID，迁移后才能跨场景生效。
+        return context.IsGroup ? context.ChatId : context.UserId;
     }
 }

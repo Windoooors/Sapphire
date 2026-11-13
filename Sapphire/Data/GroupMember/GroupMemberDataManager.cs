@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Sapphire.Data.GroupMember.Database;
 using Sapphire.Data.GroupMember.Dtos;
 using Sapphire.Environments;
@@ -32,6 +32,41 @@ public class GroupMemberDataManager
                 SceneUserIds[(alias.GroupId, alias.UserId)] = alias.SceneUserId;
 
         BakeIndexingData();
+    }
+
+    private readonly Lock _reloadLock = new();
+
+    /// <summary>
+    ///     迁移服务直接写库后，重新读取别名/成员并重建内存索引。
+    /// </summary>
+    public void ReloadAndBake()
+    {
+        lock (_reloadLock)
+        {
+            using var context = new GroupMemberDataContext();
+
+            var aliases = context.GroupMemberAliases.AsNoTracking().ToList();
+            var members = context.GroupMembers.AsNoTracking().ToList();
+
+            AliasList.Clear();
+            AliasList.AddRange(aliases);
+
+            UserPool.Clear();
+            foreach (var group in members.GroupBy(x => x.GroupId))
+                UserPool.Add(group.Key, group.Select(x => x.UserId).ToHashSet());
+
+            SceneUserIds.Clear();
+
+            foreach (var member in members)
+                if (!string.IsNullOrEmpty(member.SceneUserId))
+                    SceneUserIds[(member.GroupId, member.UserId)] = member.SceneUserId;
+
+            foreach (var alias in aliases)
+                if (!string.IsNullOrEmpty(alias.SceneUserId))
+                    SceneUserIds[(alias.GroupId, alias.UserId)] = alias.SceneUserId;
+
+            BakeIndexingData();
+        }
     }
 
     public Dictionary<string, (string groupId, string userId)[]> AliasToUserIds { get; } = [];
