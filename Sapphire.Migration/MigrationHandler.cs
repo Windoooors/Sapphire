@@ -8,7 +8,7 @@ public static class MigrationHandler
     public static async Task<MigrationResponse> MigrateAsync(MigrationRequest request, MigrationConfig config,
         CancellationToken cancellationToken)
     {
-        if (request.LegacyGroupId <= 0)
+        if (request.LegacyGroupId is <= 0)
             return new MigrationResponse
             {
                 RequestId = request.RequestId,
@@ -27,8 +27,15 @@ public static class MigrationHandler
         try
         {
             var scores = await CopyScoresAsync(legacy, target, transaction, request, cancellationToken);
-            var aliases = await CopyAliasesAsync(legacy, target, transaction, request, cancellationToken);
-            var members = await CopyMemberAsync(target, transaction, request, cancellationToken);
+
+            var aliases = request.LegacyGroupId is { } legacyGroupId
+                ? await CopyAliasesAsync(legacy, target, transaction, request, legacyGroupId, cancellationToken)
+                : 0;
+
+            var members = request.LegacyGroupId.HasValue
+                ? await CopyMemberAsync(target, transaction, request, cancellationToken)
+                : 0;
+
             var settings = await CopySettingsAsync(legacy, target, transaction, request, cancellationToken);
 
             await transaction.CommitAsync(cancellationToken);
@@ -87,14 +94,15 @@ public static class MigrationHandler
     }
 
     private static async Task<int> CopyAliasesAsync(NpgsqlConnection legacy, NpgsqlConnection target,
-        NpgsqlTransaction transaction, MigrationRequest request, CancellationToken cancellationToken)
+        NpgsqlTransaction transaction, MigrationRequest request, long legacyGroupId,
+        CancellationToken cancellationToken)
     {
         const string query = "SELECT \"Alias\" FROM \"GroupMemberAliases\" WHERE \"UserId\" = @qq AND \"GroupId\" = @group";
 
         await using var read = new NpgsqlCommand(query, legacy);
 
         read.Parameters.AddWithValue("qq", request.QqNumber);
-        read.Parameters.AddWithValue("group", request.LegacyGroupId);
+        read.Parameters.AddWithValue("group", legacyGroupId);
 
         var aliases = new List<string>();
 
@@ -160,8 +168,9 @@ public static class MigrationHandler
         count += await CopySettingsAsync(legacy, target, transaction, request, false, request.QqNumber,
             request.CanonicalUserId, cancellationToken);
 
-        count += await CopySettingsAsync(legacy, target, transaction, request, true,
-            request.LegacyGroupId, request.ChatId, cancellationToken);
+        if (request.LegacyGroupId is { } legacyGroupId)
+            count += await CopySettingsAsync(legacy, target, transaction, request, true,
+                legacyGroupId, request.ChatId, cancellationToken);
 
         return count;
     }

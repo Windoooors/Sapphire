@@ -16,7 +16,7 @@ public sealed record MigrationRequest
     public required string SceneUserId { get; init; }
     public required string ChatId { get; init; }
     public bool IsGroup { get; init; } = true;
-    public long LegacyGroupId { get; init; }
+    public long? LegacyGroupId { get; init; }
 }
 
 public sealed record MigrationResponse

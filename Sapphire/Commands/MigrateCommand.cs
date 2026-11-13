@@ -1,4 +1,4 @@
-﻿using Sapphire.Data.GroupMember;
+using Sapphire.Data.GroupMember;
 using Sapphire.Data.Settings;
 using Sapphire.Environments;
 using Sapphire.Utils;
@@ -27,17 +27,12 @@ public class MigrateCommand : CommandBase
 
     protected override async Task Process(MessageContext context)
     {
-        await SendMessage(context, "用法：migrate <QQ号> --group <旧群号>");
+        await SendMessage(context,
+            "用法：\n群聊：migrate <QQ号> --group <旧群号>\n私聊：migrate <QQ号>（只迁移成绩和私聊设置）");
     }
 
     protected override async Task ProcessWithArguments(CommandContext commandContext, MessageContext context)
     {
-        if (!context.IsGroup)
-        {
-            await SendMessage(context, "该功能仅支持在群聊中使用");
-            return;
-        }
-
         if (!MigrationServer.IsRunning)
         {
             await SendMessage(context, "迁移服务未启用，请先在主 bot 配置中开启 [Migration]");
@@ -46,7 +41,10 @@ public class MigrateCommand : CommandBase
 
         var environment = SpEnvironmentHandler.Environment.Migration;
 
-        if (!environment.AllowAllUsers &&
+        // 私聊只影响当前 canonical 用户的成绩/私聊设置，允许所有用户自行迁移；
+        // 群聊会导入群友别名/群成员/群设置，仍要求管理员权限。
+        if (context.IsGroup &&
+            !environment.AllowAllUsers &&
             !IsBotAdministrator(context) &&
             !IsGroupAdministrator(context))
         {
@@ -62,18 +60,25 @@ public class MigrateCommand : CommandBase
             return;
         }
 
-        var legacyGroupString = commandContext.GetFlag("--group");
+        long? legacyGroupId = null;
 
-        if (string.IsNullOrWhiteSpace(legacyGroupString))
+        if (context.IsGroup)
         {
-            await SendMessage(context, "必须提供 --group <旧群号>");
-            return;
-        }
+            var legacyGroupString = commandContext.GetFlag("--group");
 
-        if (!long.TryParse(legacyGroupString, out var legacyGroupId) || legacyGroupId <= 0)
-        {
-            await SendArgumentError(context);
-            return;
+            if (string.IsNullOrWhiteSpace(legacyGroupString))
+            {
+                await SendMessage(context, "群聊迁移必须提供 --group <旧群号>");
+                return;
+            }
+
+            if (!long.TryParse(legacyGroupString, out var parsedGroupId) || parsedGroupId <= 0)
+            {
+                await SendArgumentError(context);
+                return;
+            }
+
+            legacyGroupId = parsedGroupId;
         }
 
         var request = new MigrationRequest
@@ -83,7 +88,7 @@ public class MigrateCommand : CommandBase
             CanonicalUserId = context.UserId,
             SceneUserId = context.SceneUserId,
             ChatId = context.ChatId,
-            IsGroup = true,
+            IsGroup = context.IsGroup,
             LegacyGroupId = legacyGroupId
         };
 
@@ -105,15 +110,21 @@ public class MigrateCommand : CommandBase
 
         try
         {
-            GroupMemberDataManager.Instance?.ReloadAndBake();
+            if (context.IsGroup)
+                GroupMemberDataManager.Instance?.ReloadAndBake();
+
             SettingsDataManager.Instance?.Reload();
         }
         catch (Exception ex)
         {
-            Log.Error(ex, "Error occurred while reloading group member indexes after migration");
+            Log.Error(ex, "Error occurred while reloading indexes after migration");
         }
 
-        await SendMessage(context,
-            $"迁移完成：成绩 {response.Scores} 条，别名 {response.Aliases} 条，群成员 {response.Members} 条，设置 {response.Settings} 条");
+        if (context.IsGroup)
+            await SendMessage(context,
+                $"迁移完成：成绩 {response.Scores} 条，别名 {response.Aliases} 条，群成员 {response.Members} 条，设置 {response.Settings} 条");
+        else
+            await SendMessage(context,
+                $"迁移完成：成绩 {response.Scores} 条，私聊设置 {response.Settings} 条");
     }
 }

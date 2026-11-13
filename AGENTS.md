@@ -1,4 +1,4 @@
-# AGENTS.md
+﻿# AGENTS.md
 
 面向在本仓库中工作的 AI 编码代理的说明。开始改动前请先读完本文件；若本文件与代码不一致，以代码为准，并顺手修正本文件。
 
@@ -10,7 +10,7 @@ Sapphire 是一个 QQ 机器人（群聊 + 单聊），通过 **官方 QQ 机器
 - 中二节奏（Chunithm）：曲目数据（功能仍在搭建）。
 - 群友：别名、搜索、娶群友、透群友、婚姻状态。
 - 娱乐/工具：Ping、WhoAmI、Gay 指数、计基助手（IEEE 754 浮点与整数进制转换）、按群/按人设置开关。
-- 旧库迁移：`migrate <QQ号> --group <旧群号>`，通过独立的 `Sapphire.Migration` 项目把旧 NapCat 库中该 QQ 的成绩、别名、群成员和设置迁移到新库，完成后主 bot 自动重建别名索引。
+- 旧库迁移：群聊用 `migrate <QQ号> --group <旧群号>` 迁移成绩、别名、群成员和设置；私聊用 `migrate <QQ号>` 只迁移成绩和私聊设置。由独立的 `Sapphire.Migration` 项目完成，主 bot 在回调后自动重建索引。
 
 技术栈：.NET 10（`net10.0`）、C#（file-scoped namespace、nullable、collection expressions）、EF Core 10 + PostgreSQL（Npgsql）、Tomlyn（TOML 配置）、Serilog（控制台 + 按天滚动文件）、SixLabors.ImageSharp 4（绘图）、QQBot.Net（官方 QQ Bot API）。
 
@@ -256,8 +256,9 @@ private static readonly CommandBase[] GroupCommands =
 主 bot 侧：
 
 - `[Migration] Enabled = true` 时，`MigrationServer` 在 `127.0.0.1:<Port>/migration/` 启动 WebSocket 服务端；`Port` 默认 5201，`Token` 可选。
-- 指令 `migrate <QQ号> --group <旧群号>`；**`--group` 必填**，值是旧 NapCat 库里的 QQ 群号，不是新 `group_openid`。
-- 默认只有 bot 管理员/群主/群管理员能执行；`[Migration] AllowAllUsers = true` 才允许所有群成员。QQ 号本身没有二次校验，开启前确认群环境可信。
+- 群聊指令 `migrate <QQ号> --group <旧群号>`；**群聊里 `--group` 必填**，值是旧 NapCat 库里的 QQ 群号，不是新 `group_openid`。
+- 私聊指令 `migrate <QQ号>`；不传 `--group`，只迁移成绩和私聊设置，不导入别名/群成员/群设置，允许普通用户自行执行。
+- 群聊迁移默认只有 bot 管理员/群主/群管理员能执行；`[Migration] AllowAllUsers = true` 才允许所有群成员。QQ 号本身没有二次校验，开启前确认群环境可信。
 - 请求携带 `QqNumber / CanonicalUserId / SceneUserId / ChatId / LegacyGroupId`；迁移项目完成后回传计数，主 bot 调 `GroupMemberDataManager.ReloadAndBake()` 和 `SettingsDataManager.Reload()`，别名/群成员/设置立即生效。
 
 迁移项目 `Sapphire.Migration`：
@@ -269,9 +270,9 @@ private static readonly CommandBase[] GroupCommands =
 - 用 Npgsql 直接读写，不引用 EF 模型；启动后连接主 bot，断线每 5 秒重连。
 - 迁移内容：
   - 旧 `MaiUserPlayRecords`（按 QQ）→ 新 `MaiUserPlayRecords`（按 canonical）；新库已有记录时**覆盖**。
-  - 旧 `GroupMemberAliases` 中 `GroupId = 旧群号` 的别名 → 新库当前 `ChatId` 群，`UserId = canonical`，`SceneUserId = 当前 scene openid`；重复别名跳过。
-  - 旧 `GroupMemberAliases` 对应的用户 → 新 `GroupMembers` 当前群成员池（不存在时插入）。
-  - 旧 `SettingsItems`：单聊设置（`IsGroup=false, ChatId=QQ`）→ 新库 `IsGroup=false, ChatId=canonical`；群设置（`ChatId=旧群号`）→ 新库 `IsGroup=true, ChatId=当前群 openid`；相同主键 upsert。
+  - 旧 `GroupMemberAliases` 中 `GroupId = 旧群号` 的别名 → 新库当前 `ChatId` 群，`UserId = canonical`，`SceneUserId = 当前 scene openid`；重复别名跳过（仅群聊迁移）。
+  - 旧 `GroupMemberAliases` 对应的用户 → 新 `GroupMembers` 当前群成员池（不存在时插入；仅群聊迁移）。
+  - 旧 `SettingsItems`：单聊设置（`IsGroup=false, ChatId=QQ`）→ 新库 `IsGroup=false, ChatId=canonical`，私聊迁移始终执行；群设置（`ChatId=旧群号`）→ 新库 `IsGroup=true, ChatId=当前群 openid`，仅群聊迁移且需要 `--group`；相同主键 upsert。
   - 婚姻不迁移：旧库 `PartnerId` 也是 QQ 号，需要双方 QQ→canonical 映射，目前没有该映射表。
 - 同一个 QQ 可以对多个旧群分别执行迁移；成绩会被重复覆盖，别名会合并到当前群。
 
@@ -345,7 +346,8 @@ dotnet run --project Sapphire/Sapphire.csproj
 - WCK 服务按 `openid` 索引 session（不是 QQ 号）；Sapphire 侧 `SessionLoginRequestDto` / `WckDataManager` 已同步，改动时两边一起改。
 - QQBot.Net 0.2.0 不解析 `username` / `member_nickname` / `member_role` / `union_openid`；本项目依赖 `third_party/QQBot.Net` fork 的 `SocketMessage.Author*` 属性。升级 SDK 时先同步 fork，不要直接换回 NuGet 包。
 - `MaiAliases.CreatorUserId` 在新库是 `text`；旧别名 creator 已置 `NULL`，只有 bot 管理员能删除旧别名。
-- `migrate` 的 `--group` 必填，值是**旧库 QQ 群号**；不要传新 `group_openid`。同一个 QQ 对多个旧群分别迁移会重复覆盖成绩、把别名合并到当前群。
+- 群聊 `migrate` 的 `--group` 必填，值是**旧库 QQ 群号**；不要传新 `group_openid`。私聊 `migrate` 不需要也不使用 `--group`，只迁移成绩和私聊设置。
+- 同一个 QQ 对多个旧群分别迁移会重复覆盖成绩、把别名合并到当前群。
 - 迁移服务必须先在主 bot 的 `[Migration] Enabled = true` 且 `Sapphire.Migration` 已连接；否则指令只会回“迁移服务未启用/未连接”。
 - 迁移项目直接写新库，主 bot 的内存索引不会自动更新；必须等回调里的 `ReloadAndBake()`/`Reload()` 执行。手工改库后也要重启或触发 reload。
 - 迁移会**覆盖**新库已有的 `MaiUserPlayRecords`；如果用户已经用 DivingFish/WCK 更新过成绩，先确认是否还要旧数据。婚姻不迁移。
