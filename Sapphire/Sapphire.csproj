@@ -6,8 +6,8 @@
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
         <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
-        <!-- 本地 fork 的 QQBot.Net，暴露官方事件里的 union_openid / username / member_role。 -->
-        <QQBotNetRoot Condition="'$(QQBotNetRoot)' == ''">$(MSBuildThisFileDirectory)..\..\QQBot.Net</QQBotNetRoot>
+        <!-- 打补丁的 QQBot.Net（git submodule），暴露官方事件里的 union_openid / username / member_role。 -->
+        <QQBotNetRoot Condition="'$(QQBotNetRoot)' == ''">$(MSBuildThisFileDirectory)..\third_party\QQBot.Net</QQBotNetRoot>
     </PropertyGroup>
 
     <ItemGroup>

@@ -1,4 +1,4 @@
-﻿FROM mcr.microsoft.com/dotnet/runtime:10.0 AS base
+FROM mcr.microsoft.com/dotnet/runtime:10.0 AS base
 USER $APP_UID
 WORKDIR /app
 
@@ -6,6 +6,7 @@ FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 ARG BUILD_CONFIGURATION=Release
 WORKDIR /src
 COPY ["Sapphire/Sapphire.csproj", "Sapphire/"]
+COPY ["third_party/QQBot.Net/", "third_party/QQBot.Net/"]
 RUN dotnet restore "Sapphire/Sapphire.csproj"
 COPY . .
 WORKDIR "/src/Sapphire"

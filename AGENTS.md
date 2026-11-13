@@ -15,20 +15,22 @@ Sapphire 是一个 QQ 机器人（群聊 + 单聊），通过 **官方 QQ 机器
 
 仓库目前**没有测试项目**，正确性主要靠编译和手工联调保证。
 
-> **依赖本地 fork**：`Sapphire/Sapphire.csproj` 默认引用同级目录 `../QQBot.Net`（可通过 `-p:QQBotNetRoot=...` 覆盖）。这个 fork 在 `SocketMessage` 上暴露了官方网关下发、但 QQBot.Net 0.2.0 未解析的 `AuthorUsername` / `AuthorGroupNickname` / `AuthorMemberRole` / `AuthorUnionOpenId` / `AuthorAvatar`。换机器构建时先准备这个 fork；Docker 构建目前不可用（fork 在仓库外，构建上下文看不到）。
+> **依赖打补丁的 SDK**：`Sapphire/Sapphire.csproj` 通过 git submodule 引用 `third_party/QQBot.Net`（fork：<https://github.com/Windoooors/QQBot.Net>）。clone 仓库后先执行 `git submodule update --init --recursive`；默认 `QQBotNetRoot=$(MSBuildThisFileDirectory)..\third_party\QQBot.Net`，可用 `-p:QQBotNetRoot=...` 指向别的 checkout。这个 fork 在 `SocketMessage` 上暴露了官方网关下发、但 QQBot.Net 0.2.0 未解析的 `AuthorUsername` / `AuthorGroupNickname` / `AuthorMemberRole` / `AuthorUnionOpenId` / `AuthorAvatar`。Docker 构建同样要求 submodule 已初始化。
 
 ## 常用命令
 
 | 目的 | 命令 |
 | --- | --- |
+| 初始化 submodule | `git submodule update --init --recursive` |
 | 还原 + 编译 | `dotnet build Sapphire.sln` |
 | 仅编译项目 | `dotnet build Sapphire/Sapphire.csproj` |
 | 本地运行 | `dotnet run --project Sapphire/Sapphire.csproj` |
 | Release 发布 | `dotnet publish Sapphire/Sapphire.csproj -c Release -o out` |
+| Docker 构建 | `git submodule update --init --recursive && docker build -f Sapphire/Dockerfile -t sapphire .` |
 | 新增 EF 迁移 | 见[数据库与迁移](#数据库与迁移) |
 
 - 需要 .NET SDK 10（当前开发机为 10.0.403）；仓库没有 `global.json`。
-- QQBot.Net fork 的位置默认是 `/Users/setchin/Projects/QQBot.Net`（相对仓库根 `../QQBot.Net`）；fork 只改了 `src/QQBot.Net.WebSocket` 的事件字段解析。
+- QQBot.Net 位于 `third_party/QQBot.Net`（git submodule，fork 只改了 `src/QQBot.Net.WebSocket` 的事件字段解析）。不要直接改 submodule 里的代码；补丁应提交到 fork 后更新 submodule 指针。
 - 编译产物在 `Sapphire/bin/<Configuration>/net10.0/`；`AppContext.BaseDirectory` 指向该目录，`config.toml` 与 `Resources/` 都相对于它。`dotnet run` 不会切换当前工作目录，Serilog 的 `logs/` 相对当前 shell 目录生成。
 - 当前基线：`dotnet build Sapphire.sln` 为 0 warning / 0 error。提交前至少保证编译通过，不要新增警告。
 - `dotnet run` 是常驻服务：会连接 PostgreSQL、加载曲目、连接 QQ 网关，不会自行退出。验证时请用后台任务或超时，不要在前台无限等待。
@@ -39,7 +41,7 @@ Sapphire 是一个 QQ 机器人（群聊 + 单聊），通过 **官方 QQ 机器
 ```
 Sapphire/
 ├── Program.cs                  # 入口：根指令注册、启动顺序、全局 HttpClient/Timer
-├── Sapphire.csproj             # net10.0；ProjectReference 指向本地 QQBot.Net fork
+├── Sapphire.csproj             # net10.0；ProjectReference 指向 third_party/QQBot.Net
 ├── Commands/                   # 指令层
 │   ├── CommandBase.cs          # 指令基类、CommandContext、FlagSpec、发消息/权限辅助
 │   ├── MessageContext.cs       # 与接入协议无关的消息上下文（群/单聊、canonical 用户 ID）
@@ -303,11 +305,11 @@ dotnet run --project Sapphire/Sapphire.csproj
 - `GroupMemberDataManager.SceneUserIds` / `DisplayNames` 是进程内缓存，重启后需要用户再次发言才会重新积累；群成员列表接口目前是内邀（11253），不要假设能随时查任意成员。
 - 官方 `union_openid` 可能为空；`MessageContext.UserId` 会退化为 scene ID，跨群成绩会分裂。换 bot 后先用 `whoami` 确认。
 - WCK 服务按 `openid` 索引 session（不是 QQ 号）；Sapphire 侧 `SessionLoginRequestDto` / `WckDataManager` 已同步，改动时两边一起改。
-- QQBot.Net 0.2.0 不解析 `username` / `member_nickname` / `member_role` / `union_openid`；本项目依赖本地 fork 的 `SocketMessage.Author*` 属性。升级 NuGet 包会丢掉这些字段。
+- QQBot.Net 0.2.0 不解析 `username` / `member_nickname` / `member_role` / `union_openid`；本项目依赖 `third_party/QQBot.Net` fork 的 `SocketMessage.Author*` 属性。升级 SDK 时先同步 fork，不要直接换回 NuGet 包。
 - `MaiAliases.CreatorUserId` 在新库是 `text`；旧别名 creator 已置 `NULL`，只有 bot 管理员能删除旧别名。
 
 ## 参考
 
 - 远程仓库：<https://github.com/Windoooors/Sapphire>
-- QQBot.Net：<https://github.com/gehongyan/QQBot.Net>（文档：<https://qqbotnet.dev/>）
+- QQBot.Net fork：<https://github.com/Windoooors/QQBot.Net>（上游：<https://github.com/gehongyan/QQBot.Net>；文档：<https://qqbotnet.dev/>）
 - 官方文档：<https://bot.q.qq.com/wiki/develop/api-v2/>
