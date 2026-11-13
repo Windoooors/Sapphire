@@ -1,7 +1,9 @@
-using System.Collections.Concurrent;
+﻿using System.Collections.Concurrent;
 using System.Text;
 using Sapphire.Commands.GroupMemberCommands;
 using Sapphire.Data.GroupMember;
+using Sapphire.Data.Migration;
+using Serilog;
 
 namespace Sapphire.Commands;
 
@@ -88,6 +90,51 @@ public abstract class GroupMemberCommandBase : CommandBase
         return KnownNames.TryGetValue(userId, out var name)
             ? Task.FromResult<string?>(name)
             : Task.FromResult<string?>(null);
+    }
+
+
+    /// <summary>
+    ///     娶/日之前要求用户先完成旧库迁移；未迁移时发送填写模板并拦截。
+    /// </summary>
+    protected static async Task<bool> EnsureMigratedAsync(MessageContext context)
+    {
+        try
+        {
+            if (await UserMigrationStatusManager.HasMigratedAsync(context.UserId))
+                return true;
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Failed to check migration status for {UserId}", context.UserId);
+            await SendUnknownError(context);
+            return false;
+        }
+
+        var template = context.IsGroup
+            ? """
+              使用「娶群友 / 透群友」前，请先迁移旧数据。
+
+              群聊：先 @ 我，再发送
+              migrate <你的QQ号> --group <当前群对应的旧QQ群号>
+
+              私聊：发送
+              migrate <你的QQ号>
+
+              把 <> 里的内容换成实际数字；迁移完成后会自动放行。
+              示例：migrate 123456789 --group 987654321
+              """
+            : """
+              使用「娶群友 / 透群友」前，请先迁移旧数据。
+
+              发送：
+              migrate <你的QQ号>
+
+              把 <> 里的内容换成实际数字；迁移完成后会自动放行。
+              示例：migrate 123456789
+              """;
+
+        await SendMessage(context, template);
+        return false;
     }
 
     protected static async Task SendMemberNotFoundError(MessageContext context)

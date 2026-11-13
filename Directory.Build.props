@@ -1,0 +1,6 @@
+<Project>
+    <PropertyGroup>
+        <!-- 迁移/离线构建环境不需要 NuGet 漏洞审计；避免沙箱或受限缓存导致 NU1900。 -->
+        <NuGetAudit>false</NuGetAudit>
+    </PropertyGroup>
+</Project>

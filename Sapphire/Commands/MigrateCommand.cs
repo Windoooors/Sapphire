@@ -1,4 +1,5 @@
-using Sapphire.Data.GroupMember;
+﻿using Sapphire.Data.GroupMember;
+using Sapphire.Data.Migration;
 using Sapphire.Data.Settings;
 using Sapphire.Environments;
 using Sapphire.Utils;
@@ -110,6 +111,8 @@ public class MigrateCommand : CommandBase
 
         try
         {
+            await UserMigrationStatusManager.MarkMigratedAsync(context.UserId, qqNumber);
+
             if (context.IsGroup)
                 GroupMemberDataManager.Instance?.ReloadAndBake();
 
@@ -117,7 +120,7 @@ public class MigrateCommand : CommandBase
         }
         catch (Exception ex)
         {
-            Log.Error(ex, "Error occurred while reloading indexes after migration");
+            Log.Error(ex, "Error occurred while marking migration status or reloading indexes");
         }
 
         if (context.IsGroup)

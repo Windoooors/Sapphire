@@ -260,6 +260,23 @@ private static readonly CommandBase[] GroupCommands =
 - 私聊指令 `migrate <QQ号>`；不传 `--group`，只迁移成绩和私聊设置，不导入别名/群成员/群设置，允许普通用户自行执行。
 - 群聊迁移默认只有 bot 管理员/群主/群管理员能执行；`[Migration] AllowAllUsers = true` 才允许所有群成员。QQ 号本身没有二次校验，开启前确认群环境可信。
 - 请求携带 `QqNumber / CanonicalUserId / SceneUserId / ChatId / LegacyGroupId`；迁移项目完成后回传计数，主 bot 调 `GroupMemberDataManager.ReloadAndBake()` 和 `SettingsDataManager.Reload()`，别名/群成员/设置立即生效。
+- 主 bot 在 `UserMigrationStatus` 表记录已迁移用户（表由 `UserMigrationStatusManager` 用 Npgsql 按需创建，不走 EF 迁移）；`娶群友` / `透群友` 在未迁移时发送填写模板并拦截。
+- 首次创建状态表时，会把已有 `MaiUserPlayRecords` / `GroupMemberAliases` 的用户种子标记为已迁移；新用户需要先执行一次 `migrate`（旧库没有数据也会以 0 条成功并标记）。
+
+未迁移时 `娶群友` / `透群友` 的提示模板：
+
+```text
+使用「娶群友 / 透群友」前，请先迁移旧数据。
+
+群聊：先 @ 我，再发送
+migrate <你的QQ号> --group <当前群对应的旧QQ群号>
+
+私聊：发送
+migrate <你的QQ号>
+
+把 <> 里的内容换成实际数字；迁移完成后会自动放行。
+示例：migrate 123456789 --group 987654321
+```
 
 迁移项目 `Sapphire.Migration`：
 
@@ -352,6 +369,8 @@ dotnet run --project Sapphire/Sapphire.csproj
 - 迁移项目直接写新库，主 bot 的内存索引不会自动更新；必须等回调里的 `ReloadAndBake()`/`Reload()` 执行。手工改库后也要重启或触发 reload。
 - 迁移会**覆盖**新库已有的 `MaiUserPlayRecords`；如果用户已经用 DivingFish/WCK 更新过成绩，先确认是否还要旧数据。婚姻不迁移。
 - `Sapphire.Migration` 的 `config.toml` 含新旧库口令，只放在输出目录（`bin/` 已忽略），不要提交；`config.example.toml` 可以提交。
+- `UserMigrationStatus` 是主 bot 自动建的表，不是 EF 迁移；手工清空它会让所有用户重新收到娶/日迁移提醒。已有成绩/别名的用户在表首次创建时会被自动标记。
+- 新用户第一次娶/日会被拦截并要求先 migrate；迁移成功后才写入 `UserMigrationStatus`。旧库没有数据时也建议跑一次 `migrate`，以 0 条结果完成标记。
 
 ## 参考
 

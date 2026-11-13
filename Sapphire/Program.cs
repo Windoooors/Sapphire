@@ -1,5 +1,6 @@
-using Sapphire.Commands;
+﻿using Sapphire.Commands;
 using Sapphire.Data.GroupMember;
+using Sapphire.Data.Migration;
 using Sapphire.Data.Settings;
 using Sapphire.Environments;
 using Sapphire.Utils;
@@ -73,6 +74,15 @@ public static class Program
         }
 
         Log.Information("Commands initialized");
+
+        try
+        {
+            await UserMigrationStatusManager.EnsureInitializedAsync();
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Failed to initialize the user migration status table");
+        }
 
         try
         {

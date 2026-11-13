@@ -63,6 +63,9 @@ public class MarryCommand : GroupMemberCommandBase
             return;
         }
 
+        if (!await EnsureMigratedAsync(context))
+            return;
+
         var groupId = context.ChatId;
         var userId = context.UserId;
 

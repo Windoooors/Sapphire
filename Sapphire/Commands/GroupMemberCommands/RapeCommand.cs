@@ -22,6 +22,9 @@ public class RapeCommand : GroupMemberCommandBase
             return;
         }
 
+        if (!await EnsureMigratedAsync(context))
+            return;
+
         var targetString = commandContext.Argument;
 
         if (string.IsNullOrEmpty(targetString))
@@ -94,6 +97,9 @@ public class RapeCommand : GroupMemberCommandBase
             await SendUnknownError(context);
             return;
         }
+
+        if (!await EnsureMigratedAsync(context))
+            return;
 
         if (!GroupMemberDataManager.Instance.UserPool.TryGetValue(context.ChatId, out var group))
         {
