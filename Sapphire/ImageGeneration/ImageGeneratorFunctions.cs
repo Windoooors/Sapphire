@@ -1,7 +1,9 @@
+using Sapphire.Environments;
 using SixLabors.Fonts;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Drawing.Processing;
 using SixLabors.ImageSharp.Formats.Jpeg;
+using SixLabors.ImageSharp.PixelFormats;
 
 namespace Sapphire.ImageGeneration;
 
@@ -40,11 +42,18 @@ public static class ImageGeneratorFunctions
             , null);
     }
 
-    public static async Task<string> GetUserAvatarBase64Async(long userId, int spec = 100)
+    private static string GetAvatarUrl(string openId, int spec)
     {
-        var url = $"http://q.qlogo.cn/headimg_dl?dst_uin={userId}&spec={spec}&img_type=jpg";
+        var appId = SpEnvironmentHandler.Environment.QQBot.AppId;
+        return $"https://q.qlogo.cn/qqapp/{appId}/{openId}/{spec}";
+    }
 
-        using var resp = await Program.HttpClient.GetAsync(url);
+    public static async Task<string> GetUserAvatarBase64Async(string openId, int spec = 100)
+    {
+        if (string.IsNullOrWhiteSpace(openId))
+            return "";
+
+        using var resp = await Program.HttpClient.GetAsync(GetAvatarUrl(openId, spec));
         await using var stream = await resp.Content.ReadAsStreamAsync();
 
         using var memoryStream = new MemoryStream();
@@ -53,21 +62,23 @@ public static class ImageGeneratorFunctions
         return Convert.ToBase64String(memoryStream.ToArray());
     }
 
-    public static async Task<Image> GetUserAvatarAsync(long userId, int spec = 100)
+    public static async Task<Image> GetUserAvatarAsync(string openId, int spec = 100)
     {
-        var url = $"http://q.qlogo.cn/headimg_dl?dst_uin={userId}&spec={spec}&img_type=jpg";
+        if (string.IsNullOrWhiteSpace(openId))
+            return new Image<Rgba32>(100, 100, Color.Gray.ToPixel<Rgba32>());
 
-        using var resp = await Program.HttpClient.GetAsync(url);
+        using var resp = await Program.HttpClient.GetAsync(GetAvatarUrl(openId, spec));
         await using var stream = await resp.Content.ReadAsStreamAsync();
 
         return await Image.LoadAsync(stream);
     }
 
-    public static Image GetUserAvatar(long userId, int spec = 100)
+    public static Image GetUserAvatar(string openId, int spec = 100)
     {
-        var url = $"http://q.qlogo.cn/headimg_dl?dst_uin={userId}&spec={spec}&img_type=jpg";
+        if (string.IsNullOrWhiteSpace(openId))
+            return new Image<Rgba32>(100, 100, Color.Gray.ToPixel<Rgba32>());
 
-        using var resp = Program.HttpClient.GetAsync(url).Result;
+        using var resp = Program.HttpClient.GetAsync(GetAvatarUrl(openId, spec)).Result;
         using var stream = resp.Content.ReadAsStream();
 
         return Image.Load(stream);

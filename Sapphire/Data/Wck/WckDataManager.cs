@@ -1,6 +1,5 @@
 using System.Net;
 using System.Text.Json;
-using EleCho.GoCqHttpSdk.Post;
 using Sapphire.Commands;
 using Sapphire.Data.Wck.Dtos;
 using Sapphire.Environments;
@@ -9,7 +8,7 @@ namespace Sapphire.Data.Wck;
 
 public static class WckDataManager // Wck stands for WahlapConnectiveKits
 {
-    public static async Task<string?> GetSessionId(CqMessagePostContext context, bool sendHelp = true)
+    public static async Task<string?> GetSessionId(MessageContext context, bool sendHelp = true)
     {
         try
         {
@@ -47,11 +46,12 @@ public static class WckDataManager // Wck stands for WahlapConnectiveKits
         return responseObject.MusicData;
     }
 
-    private static async Task<string?> GetSessionIdCore(long userId)
+    private static async Task<string?> GetSessionIdCore(string openId)
     {
         var env = SpEnvironmentHandler.Environment.WahlapConnectiveKits;
 
-        var request = new HttpRequestMessage(HttpMethod.Get, $"{env.WckUrl}/v1/sessions?qq_id=" + userId);
+        var request = new HttpRequestMessage(HttpMethod.Get,
+            $"{env.WckUrl}/v1/sessions?openid=" + Uri.EscapeDataString(openId));
 
         using var resp = await Program.HttpClient.SendAsync(request);
 

@@ -1,8 +1,7 @@
-using EleCho.GoCqHttpSdk.Message;
-using EleCho.GoCqHttpSdk.Post;
-using Sapphire.Data.GroupMember;
+﻿using Sapphire.Data.GroupMember;
 using Sapphire.Environments;
 using Sapphire.ImageGeneration;
+using Sapphire.Utils;
 
 namespace Sapphire.Commands.GroupMemberCommands;
 
@@ -15,9 +14,9 @@ public class RapeCommand : GroupMemberCommandBase
         ActivationSettingsIdentifier = "rape.enabled";
     }
 
-    protected override async Task ProcessWithArguments(CommandContext commandContext, CqMessagePostContext context)
+    protected override async Task ProcessWithArguments(CommandContext commandContext, MessageContext context)
     {
-        if (context is not CqGroupMessagePostContext groupMessageContext)
+        if (!context.IsGroup)
         {
             await SendWrongContextMessage(context);
             return;
@@ -47,46 +46,44 @@ public class RapeCommand : GroupMemberCommandBase
         if (userIds.Length > 1)
         {
             await SendMessage(context,
-            [
                 await BuildMemberListString(userIds,
                     $"{SpEnvironmentHandler.Environment.Sapphire.CommandPrefixes[0]} group-member alias {userIds[0]}",
                     "以透列表中第一位群友",
-                    groupMessageContext.GroupId)
-            ]);
+                    context.ChatId));
             return;
         }
 
         var userId = userIds[0];
 
-        if (userId == groupMessageContext.UserId)
+        if (userId == context.UserId)
         {
-            await SendMessage(context, ["哇 还有水仙"]);
+            await SendMessage(context, "哇 还有水仙");
             return;
         }
 
-        if (userId == SpEnvironmentHandler.Environment.Sapphire.BotQqId)
+        if (userId == BotClient.CurrentUserId)
         {
-            await SendMessage(context, ["🥺我怕你把持不住"]);
+            await SendMessage(context, "🥺我怕你把持不住");
             return;
         }
 
-        if (!GroupMemberDataManager.Instance.UserPool.TryGetValue(groupMessageContext.GroupId, out var group) ||
+        if (!GroupMemberDataManager.Instance.UserPool.TryGetValue(context.ChatId, out var group) ||
             !group.Contains(userId))
         {
-            await GroupMemberDataManager.Instance.AddUserToPool(groupMessageContext.UserId,
-                groupMessageContext.GroupId);
+            await GroupMemberDataManager.Instance.AddUserToPool(context.UserId, context.SceneUserId,
+                context.ChatId);
 
             await SendMemberNotAvailableMessage(context);
 
             return;
         }
 
-        if (!await SendMessage(groupMessageContext, userId)) await SendMemberNotAvailableMessage(context);
+        if (!await SendPairingMessage(context, userId)) await SendMemberNotAvailableMessage(context);
     }
 
-    protected override async Task Process(CqMessagePostContext context)
+    protected override async Task Process(MessageContext context)
     {
-        if (context is not CqGroupMessagePostContext groupMessageContext)
+        if (!context.IsGroup)
         {
             await SendWrongContextMessage(context);
             return;
@@ -98,19 +95,19 @@ public class RapeCommand : GroupMemberCommandBase
             return;
         }
 
-        if (!GroupMemberDataManager.Instance.UserPool.TryGetValue(groupMessageContext.GroupId, out var group))
+        if (!GroupMemberDataManager.Instance.UserPool.TryGetValue(context.ChatId, out var group))
         {
-            await GroupMemberDataManager.Instance.AddUserToPool(groupMessageContext.UserId,
-                groupMessageContext.GroupId);
+            await GroupMemberDataManager.Instance.AddUserToPool(context.UserId, context.SceneUserId,
+                context.ChatId);
 
             await SendNoAvailableMemberMessage(context);
 
             return;
         }
 
-        if (!group.Contains(groupMessageContext.UserId))
-            await GroupMemberDataManager.Instance.AddUserToPool(groupMessageContext.UserId,
-                groupMessageContext.GroupId);
+        if (!group.Contains(context.UserId))
+            await GroupMemberDataManager.Instance.AddUserToPool(context.UserId, context.SceneUserId,
+                context.ChatId);
 
         if (group.Count is 0 or 1)
         {
@@ -126,45 +123,45 @@ public class RapeCommand : GroupMemberCommandBase
         {
             randomResult = random.Next(0, group.Count);
 
-            if (groupArr[randomResult] != groupMessageContext.UserId)
+            if (groupArr[randomResult] != context.UserId)
                 break;
         }
 
         var userId = groupArr[randomResult];
-        if (!await SendMessage(groupMessageContext, userId)) await Process(context);
+        if (!await SendPairingMessage(context, userId)) await Process(context);
     }
 
-    private async Task<bool> SendMessage(CqGroupMessagePostContext groupMessageContext, long userId)
+    private async Task<bool> SendPairingMessage(MessageContext context, string userId)
     {
-        var nickname = await GetNickname(userId, groupMessageContext.GroupId, true);
+        var nickname = await GetNickname(userId, context.ChatId, true);
 
         if (GroupMemberDataManager.Instance == null)
             return false;
 
         if (nickname == null)
         {
-            await GroupMemberDataManager.Instance.RemoveUserFromPool(groupMessageContext.UserId,
-                groupMessageContext.GroupId);
+            await GroupMemberDataManager.Instance.RemoveUserFromPool(context.UserId,
+                context.ChatId);
 
             return false;
         }
 
-        await SendMessage(groupMessageContext, [
-            new CqImageMsg("base64://" +
-                           await ImageGeneratorFunctions.GetUserAvatarBase64Async(userId, 640)),
-            $"您把群友 {nickname} ({userId}) 配了"
-        ]);
+        var sceneUserId = GroupMemberDataManager.Instance.GetSceneUserId(context.ChatId, userId) ?? userId;
+
+        await SendImage(context,
+            await ImageGeneratorFunctions.GetUserAvatarBase64Async(sceneUserId, 640));
+        await SendMessage(context, $"您把群友 {nickname} ({userId}) 配了");
 
         return true;
     }
 
-    private async Task SendNoAvailableMemberMessage(CqMessagePostContext context)
+    private async Task SendNoAvailableMemberMessage(MessageContext context)
     {
-        await SendMessage(context, ["无可配群友"]);
+        await SendMessage(context, "无可配群友");
     }
 
-    private async Task SendMemberNotAvailableMessage(CqMessagePostContext context)
+    private async Task SendMemberNotAvailableMessage(MessageContext context)
     {
-        await SendMessage(context, ["群友不可配"]);
+        await SendMessage(context, "群友不可配");
     }
 }

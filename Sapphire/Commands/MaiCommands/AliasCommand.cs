@@ -1,5 +1,4 @@
 using System.Text;
-using EleCho.GoCqHttpSdk.Post;
 using Sapphire.Data.Mai;
 using Sapphire.Data.Mai.Dtos;
 using Sapphire.Environments;
@@ -32,7 +31,7 @@ public class AliasCommand : MaiCommandBase
         ActivationSettingsIdentifier = "mai_alias.enabled";
     }
 
-    private async Task AddAlias(CommandContext commandContext, CqMessagePostContext context)
+    private async Task AddAlias(CommandContext commandContext, MessageContext context)
     {
         var aliasToBeAdded = commandContext.GetFlag("--add")?.Trim();
         if (string.IsNullOrEmpty(aliasToBeAdded))
@@ -81,7 +80,7 @@ public class AliasCommand : MaiCommandBase
             $"为乐曲 {NormalizeSongNameString(songs[0])} 添加别名 \"{aliasToBeAdded}\"", context, context.UserId);
     }
 
-    private async Task RemoveAlias(CommandContext commandContext, CqMessagePostContext context)
+    private async Task RemoveAlias(CommandContext commandContext, MessageContext context)
     {
         var aliasToBeDeleted = commandContext.GetFlag("--remove")?.Trim();
         if (!uint.TryParse(aliasToBeDeleted, out var aliasId))
@@ -110,7 +109,7 @@ public class AliasCommand : MaiCommandBase
         await ConfirmationCommand.Instance.AddConfirmation(async () =>
             {
                 switch (await MaiDataManager.Instance.TryRemoveAlias((int)aliasId, context.UserId,
-                            IsBotAdministrator(context.UserId)))
+                            IsBotAdministrator(context)))
                 {
                     case true:
                         await SendMessage(context, ["已删除"]);
@@ -123,7 +122,7 @@ public class AliasCommand : MaiCommandBase
             $"为乐曲 {NormalizeSongNameString(alias.Song)} 删除别名 \"{alias.Alias}\"", context, context.UserId);
     }
 
-    private async Task QueryAliases(CommandContext commandContext, CqMessagePostContext context)
+    private async Task QueryAliases(CommandContext commandContext, MessageContext context)
     {
         if (MaiDataManager.Instance == null || !TryGetSongsByString(commandContext.Argument ?? "", out var songs) ||
             songs == null)
@@ -173,7 +172,7 @@ public class AliasCommand : MaiCommandBase
         return stringBuilder.ToString().Trim();
     }
 
-    protected override async Task ProcessWithArguments(CommandContext commandContext, CqMessagePostContext context)
+    protected override async Task ProcessWithArguments(CommandContext commandContext, MessageContext context)
     {
         if (commandContext.HasFlag("--add"))
         {

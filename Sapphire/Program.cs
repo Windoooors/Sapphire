@@ -1,5 +1,5 @@
-﻿using EleCho.GoCqHttpSdk;
 using Sapphire.Commands;
+using Sapphire.Data.GroupMember;
 using Sapphire.Data.Settings;
 using Sapphire.Environments;
 using Sapphire.Utils;
@@ -10,16 +10,14 @@ namespace Sapphire;
 
 public static class Program
 {
-    public static BotSessionHandler BotSessionHandler = new();
     public static Timer Timer = new(SpEnvironmentHandler.Environment.Sapphire.UtcDayTickTime);
-    private static CancellationToken _sessionCancellationToken;
 
     private static SettingsDataManager? _settingsDataManager;
 
     private static readonly CommandBase[] GroupCommands =
     [
         new PingCommand(), new MaiCommand(), new SettingsCommand(), new ConfirmationCommand(),
-        new IcsAssistantCommand(),
+        new IcsAssistantCommand(), new WhoAmICommand(),
         new GayFactor(), new GroupMemberCommand()
     ];
 
@@ -35,6 +33,15 @@ public static class Program
         {
             foreach (var groupCommand in GroupCommands) groupCommand.OnExitCall();
 
+            try
+            {
+                BotClient.StopAsync().GetAwaiter().GetResult();
+            }
+            catch (Exception ex)
+            {
+                Log.Warning(ex, "Error occurred while stopping the bot client");
+            }
+
             keepAlive.Set();
         };
 
@@ -45,8 +52,6 @@ public static class Program
         try
         {
             _settingsDataManager = new SettingsDataManager();
-
-            _sessionCancellationToken = CancellationToken.None;
 
             foreach (var groupCommandBase in GroupCommands) groupCommandBase.StartInitialize();
         }
@@ -62,25 +67,42 @@ public static class Program
 
         try
         {
-            await BotSessionHandler.RunSession(_sessionCancellationToken,
-                StartParsing);
+            await BotClient.RunAsync(StartParsing);
         }
         catch (Exception e)
         {
             Log.Error(e, "Unknown error occurred");
 #if DEBUG
             throw;
+#else
+            return;
 #endif
         }
 
         keepAlive.WaitOne();
     }
 
-    private static void StartParsing(CqWsSession session)
+    private static void StartParsing(MessageContext context)
     {
-        _commandParser = new CommandParser(GroupCommands, SpEnvironmentHandler.Environment.Sapphire.CommandPrefixes);
+        GroupMemberCommandBase.RememberName(context.UserId, context.DisplayName);
 
-        session.UseGroupMessage(context => { _ = _commandParser.ParseAndExecute(context); });
-        session.UsePrivateMessage(context => { _ = _commandParser.ParseAndExecute(context); });
+        if (context.IsGroup)
+            GroupMemberDataManager.Instance?.UpdateUser(context.ChatId, context.UserId, context.SceneUserId,
+                context.DisplayName);
+
+        _commandParser ??= new CommandParser(GroupCommands,
+            SpEnvironmentHandler.Environment.Sapphire.CommandPrefixes);
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await _commandParser.ParseAndExecute(context);
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Error occurred while parsing a message");
+            }
+        });
     }
 }

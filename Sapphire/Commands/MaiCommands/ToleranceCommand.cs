@@ -1,5 +1,4 @@
 ﻿using System.Text;
-using EleCho.GoCqHttpSdk.Post;
 using Sapphire.Environments;
 
 namespace Sapphire.Commands.MaiCommands;
@@ -94,7 +93,7 @@ public class ToleranceCommand : MaiCommandBase
         ];
     }
 
-    protected override async Task ProcessWithArguments(CommandContext commandContext, CqMessagePostContext context)
+    protected override async Task ProcessWithArguments(CommandContext commandContext, MessageContext context)
     {
         if (string.IsNullOrEmpty(commandContext.Argument))
         {

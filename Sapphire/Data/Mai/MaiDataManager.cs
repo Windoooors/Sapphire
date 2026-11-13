@@ -47,7 +47,7 @@ public class MaiDataManager
     public Dictionary<int, MaiAliasDto> AliasIdToAlias { get; } = [];
     public Dictionary<char, MaiSongDto[]> UtageKanjiToSongs { get; } = [];
 
-    public async Task<bool> InsertUserPlayRecords(MaiPlayRecord[] records, long userId)
+    public async Task<bool> InsertUserPlayRecords(MaiPlayRecord[] records, string userId)
     {
         await using var context = new MaiUserDataContext();
         var findResult = await context.MaiUserPlayRecords.FirstOrDefaultAsync(x => x.UserId == userId);
@@ -67,7 +67,7 @@ public class MaiDataManager
         return true;
     }
 
-    public async Task<byte[]?> GetUserPlayRecordsInBytesAsync(long userId)
+    public async Task<byte[]?> GetUserPlayRecordsInBytesAsync(string userId)
     {
         await using var context = new MaiUserDataContext();
         var findResult = await context.MaiUserPlayRecords.AsNoTracking().FirstOrDefaultAsync(x => x.UserId == userId);
@@ -175,7 +175,7 @@ public class MaiDataManager
         Instance = this;
     }
 
-    public async Task<bool> TryRemoveAlias(int aliasId, long creatorUserId, bool forced = false)
+    public async Task<bool> TryRemoveAlias(int aliasId, string creatorUserId, bool forced = false)
     {
         await using var context = new MaiMetadataContext();
 
@@ -198,7 +198,7 @@ public class MaiDataManager
         return true;
     }
 
-    public async Task<bool> TryAddAlias(MaiSongDto maiSongDto, string alias, long creatorUserId)
+    public async Task<bool> TryAddAlias(MaiSongDto maiSongDto, string alias, string creatorUserId)
     {
         if (AliasList.AsQueryable().Any(x => x.Alias.ToLower() == alias.ToLower() && x.Song.Equals(maiSongDto)))
             return false;

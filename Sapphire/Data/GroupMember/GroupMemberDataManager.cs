@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using Sapphire.Data.GroupMember.Database;
 using Sapphire.Data.GroupMember.Dtos;
 using Sapphire.Environments;
@@ -23,18 +23,74 @@ public class GroupMemberDataManager
         var groupResult = userPool.GroupBy(x => x.GroupId);
         foreach (var group in groupResult) UserPool.Add(group.Key, group.Select(x => x.UserId).ToHashSet());
 
+        foreach (var member in userPool)
+            if (!string.IsNullOrEmpty(member.SceneUserId))
+                SceneUserIds[(member.GroupId, member.UserId)] = member.SceneUserId;
+
+        foreach (var alias in AliasList)
+            if (!string.IsNullOrEmpty(alias.SceneUserId))
+                SceneUserIds[(alias.GroupId, alias.UserId)] = alias.SceneUserId;
+
         BakeIndexingData();
     }
 
-    public Dictionary<string, (long groupId, long userId)[]> AliasToUserIds { get; } = [];
-    public Dictionary<(long groupId, long userId), string[]> AliasSearchKeys { get; } = [];
+    public Dictionary<string, (string groupId, string userId)[]> AliasToUserIds { get; } = [];
+    public Dictionary<(string groupId, string userId), string[]> AliasSearchKeys { get; } = [];
     public Dictionary<int, GroupMemberAliasDto> AliasIdToAlias { get; } = [];
-    public (long groupId, long userId)[] AliasedUserIds { get; private set; } = [];
-    public Dictionary<(long groupId, long userId), GroupMemberAliasDto[]> UserIdToAliases { get; } = [];
+    public (string groupId, string userId)[] AliasedUserIds { get; private set; } = [];
+    public Dictionary<(string groupId, string userId), GroupMemberAliasDto[]> UserIdToAliases { get; } = [];
 
     public List<GroupMemberAliasDto> AliasList { get; }
 
-    public Dictionary<long, HashSet<long>> UserPool { get; } = [];
+    public Dictionary<string, HashSet<string>> UserPool { get; } = [];
+
+    /// <summary>
+    ///     (群 ID, canonical 用户 ID) → 当前群内的 member_openid。
+    /// </summary>
+    public Dictionary<(string groupId, string userId), string> SceneUserIds { get; } = [];
+
+    /// <summary>
+    ///     (群 ID, canonical 用户 ID) → 展示名。来自消息事件，进程重启后需要重新积累。
+    /// </summary>
+    public Dictionary<(string groupId, string userId), string> DisplayNames { get; } = [];
+
+    public string? GetSceneUserId(string groupId, string userId)
+    {
+        return SceneUserIds.GetValueOrDefault((groupId, userId));
+    }
+
+    public string? GetDisplayName(string groupId, string userId)
+    {
+        return DisplayNames.GetValueOrDefault((groupId, userId));
+    }
+
+    public void UpdateUser(string groupId, string userId, string sceneUserId, string? displayName)
+    {
+        if (!string.IsNullOrEmpty(sceneUserId))
+            SceneUserIds[(groupId, userId)] = sceneUserId;
+
+        if (!string.IsNullOrWhiteSpace(displayName))
+            DisplayNames[(groupId, userId)] = displayName;
+    }
+
+    public List<string> FindUserIds(string groupId, string key)
+    {
+        var result = new List<string>();
+
+        if (UserPool.TryGetValue(groupId, out var users))
+            foreach (var userId in users)
+                if (string.Equals(userId, key, StringComparison.Ordinal) ||
+                    string.Equals(GetSceneUserId(groupId, userId), key, StringComparison.Ordinal))
+                    result.Add(userId);
+
+        foreach (var ((sceneGroupId, userId), sceneUserId) in SceneUserIds)
+            if (string.Equals(sceneGroupId, groupId, StringComparison.Ordinal) &&
+                (string.Equals(userId, key, StringComparison.Ordinal) ||
+                 string.Equals(sceneUserId, key, StringComparison.Ordinal)))
+                result.Add(userId);
+
+        return result.Distinct().ToList();
+    }
 
     public List<GroupMemberMarriageDto> GetMarriages()
     {
@@ -49,7 +105,7 @@ public class GroupMemberDataManager
             .ToList();
     }
 
-    public async Task AddMarriages(long groupId, IEnumerable<(long UserId, long PartnerId)> marriages,
+    public async Task AddMarriages(string groupId, IEnumerable<(string UserId, string PartnerId)> marriages,
         DateTime marriedAt)
     {
         await using var context = new GroupMemberDataContext();
@@ -66,7 +122,7 @@ public class GroupMemberDataManager
         await context.SaveChangesAsync();
     }
 
-    public async Task RemoveMarriage(long groupId, long userId, long partnerId)
+    public async Task RemoveMarriage(string groupId, string userId, string partnerId)
     {
         await using var context = new GroupMemberDataContext();
 
@@ -98,7 +154,7 @@ public class GroupMemberDataManager
         return now < dayStart ? dayStart.AddDays(-1) : dayStart;
     }
 
-    public async Task RemoveUserFromPool(long userId, long groupId)
+    public async Task RemoveUserFromPool(string userId, string groupId)
     {
         if (!UserPool.TryGetValue(groupId, out var group)) return;
 
@@ -120,7 +176,7 @@ public class GroupMemberDataManager
         }
     }
 
-    public async Task AddUserToPool(long userId, long groupId)
+    public async Task AddUserToPool(string userId, string sceneUserId, string groupId)
     {
         if (!UserPool.TryGetValue(groupId, out var group))
         {
@@ -131,7 +187,8 @@ public class GroupMemberDataManager
                 context.GroupMembers.Add(new GroupMemberDto
                 {
                     GroupId = groupId,
-                    UserId = userId
+                    UserId = userId,
+                    SceneUserId = sceneUserId
                 });
 
                 await context.SaveChangesAsync();
@@ -140,16 +197,32 @@ public class GroupMemberDataManager
             return;
         }
 
-        if (group.Contains(userId)) return;
+        if (group.Contains(userId))
+        {
+            SceneUserIds[(groupId, userId)] = sceneUserId;
+
+            await using var context = new GroupMemberDataContext();
+            var member = await context.GroupMembers
+                .FirstOrDefaultAsync(x => x.GroupId == groupId && x.UserId == userId);
+
+            if (member == null || member.SceneUserId == sceneUserId)
+                return;
+
+            member.SceneUserId = sceneUserId;
+            await context.SaveChangesAsync();
+            return;
+        }
 
         group.Add(userId);
+        SceneUserIds[(groupId, userId)] = sceneUserId;
 
         await using (var context = new GroupMemberDataContext())
         {
             context.GroupMembers.Add(new GroupMemberDto
             {
                 GroupId = groupId,
-                UserId = userId
+                UserId = userId,
+                SceneUserId = sceneUserId
             });
 
             await context.SaveChangesAsync();
@@ -189,7 +262,7 @@ public class GroupMemberDataManager
         Instance = this;
     }
 
-    public async Task<bool> TryAddAlias(long userId, long groupId, string alias)
+    public async Task<bool> TryAddAlias(string userId, string sceneUserId, string groupId, string alias)
     {
         if (AliasList.AsQueryable()
             .Any(x => x.Alias.ToLower() == alias.ToLower() && x.GroupId == groupId && x.UserId == userId))
@@ -201,6 +274,7 @@ public class GroupMemberDataManager
         {
             Alias = alias,
             UserId = userId,
+            SceneUserId = sceneUserId,
             GroupId = groupId
         };
 
@@ -210,12 +284,15 @@ public class GroupMemberDataManager
 
         AliasList.Add(result);
 
+        if (!string.IsNullOrEmpty(sceneUserId))
+            SceneUserIds[(groupId, userId)] = sceneUserId;
+
         BakeIndexingData();
 
         return true;
     }
 
-    public async Task<bool> TryRemoveAlias(int aliasId, long userId, bool forced = false)
+    public async Task<bool> TryRemoveAlias(int aliasId, string userId, bool forced = false)
     {
         await using var context = new GroupMemberDataContext();
 

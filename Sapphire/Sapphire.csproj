@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
         <OutputType>Exe</OutputType>
@@ -6,7 +6,13 @@
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
         <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
+        <!-- 本地 fork 的 QQBot.Net，暴露官方事件里的 union_openid / username / member_role。 -->
+        <QQBotNetRoot Condition="'$(QQBotNetRoot)' == ''">$(MSBuildThisFileDirectory)..\..\QQBot.Net</QQBotNetRoot>
     </PropertyGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="$(QQBotNetRoot)\src\QQBot.Net\QQBot.Net.csproj" />
+    </ItemGroup>
 
     <ItemGroup>
         <Content Include="..\.dockerignore">
@@ -15,7 +21,6 @@
     </ItemGroup>
 
     <ItemGroup>
-        <PackageReference Include="EleCho.GoCqHttpSdk" Version="1.2.6"/>
         <PackageReference Include="MeiliSearch" Version="0.20.0"/>
         <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.12">
             <PrivateAssets>all</PrivateAssets>

@@ -17,6 +17,7 @@ public static class SpEnvironmentHandler
             Environment = new SpEnvironment
             {
                 NapCat = new NapCatEnvironment(),
+                QQBot = new QQBotEnvironment(),
                 Database = new DatabaseEnvironment(),
                 DivingFish = new DivingFishEnvironment(),
                 Mai = new MaiEnvironment(),

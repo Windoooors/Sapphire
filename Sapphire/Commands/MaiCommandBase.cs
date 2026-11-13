@@ -1,5 +1,4 @@
-using System.Text;
-using EleCho.GoCqHttpSdk.Post;
+﻿using System.Text;
 using Sapphire.Commands.MaiCommands;
 using Sapphire.Data.DivingFishMai;
 using Sapphire.Data.Mai;
@@ -227,7 +226,7 @@ public abstract class MaiCommandBase : CommandBase
         return stringBuilder.ToString().Trim();
     }
 
-    protected static async Task SendSongNotFoundError(CqMessagePostContext context)
+    protected static async Task SendSongNotFoundError(MessageContext context)
     {
         await SendMessage(context, ["未找到匹配的乐曲"]);
     }
@@ -244,12 +243,12 @@ public abstract class MaiCommandBase : CommandBase
         return stringBuilder.ToString().Trim();
     }
 
-    public static async Task SendUnauthorizedError(CqMessagePostContext context)
+    public static async Task SendUnauthorizedError(MessageContext context)
     {
         await SendMessage(context, ["您未授权"]);
     }
 
-    public static async Task SendNotLoggedInError(CqMessagePostContext context)
+    public static async Task SendNotLoggedInError(MessageContext context)
     {
         await SendMessage(context, ["您未登录"]);
     }

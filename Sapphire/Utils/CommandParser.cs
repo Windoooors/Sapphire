@@ -1,5 +1,4 @@
 using System.Text;
-using EleCho.GoCqHttpSdk.Post;
 using Sapphire.Commands;
 using Sapphire.Data.Settings;
 using Serilog;
@@ -19,14 +18,14 @@ public class CommandParser(IEnumerable<CommandBase> rootCommands, string[] comma
         { "f50", "b50 -f" }
     };
 
-    public async Task ParseAndExecute(CqMessagePostContext context)
+    public async Task ParseAndExecute(MessageContext context)
     {
         foreach (var rootCommand in rootCommands) await rootCommand.ReceiveDirectly(context);
 
         if (SettingsDataManager.Instance == null)
             return;
 
-        var commandLine = context.Message.Text;
+        var commandLine = context.Content;
 
         foreach (var keyValuePair in Shortcuts)
             if (commandLine.StartsWith(keyValuePair.Key))

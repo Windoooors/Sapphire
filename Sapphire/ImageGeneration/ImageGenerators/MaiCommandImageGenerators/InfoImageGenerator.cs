@@ -93,7 +93,7 @@ public static class InfoImageGenerator
         });
     }
 
-    public static async Task<string> Generate(MaiSongDto song, MaiPlayRecord[]? records, long? userId, string? userName,
+    public static async Task<string> Generate(MaiSongDto song, MaiPlayRecord[]? records, string? userId, string? userName,
         bool? useJp)
     {
         using var backgroundImage = new Image<Rgba32>(1440, 2180, ColorPalette.BackgroundColor.ToPixel<Rgba32>());
@@ -338,7 +338,7 @@ public static class InfoImageGenerator
 
             if (records != null && userId != null)
             {
-                using var userAvatar = ImageGeneratorFunctions.GetUserAvatar((long)userId);
+                using var userAvatar = ImageGeneratorFunctions.GetUserAvatar(userId);
 
                 if (userAvatar.Width != 100 || userAvatar.Height != 100)
                     userAvatar.Mutate(y => y.Resize(100, 100));

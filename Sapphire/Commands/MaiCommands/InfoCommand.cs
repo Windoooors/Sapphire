@@ -1,5 +1,5 @@
-using EleCho.GoCqHttpSdk.Message;
-using EleCho.GoCqHttpSdk.Post;
+using QQBot;
+using Sapphire.Data.GroupMember;
 using Sapphire.Data.Mai;
 using Sapphire.Data.Mai.Dtos;
 using Sapphire.Environments;
@@ -40,7 +40,7 @@ public class InfoCommand : MaiCommandBase
         ];
     }
 
-    protected override async Task ProcessWithArguments(CommandContext commandContext, CqMessagePostContext context)
+    protected override async Task ProcessWithArguments(CommandContext commandContext, MessageContext context)
     {
         var startTime = DateTime.UtcNow;
 
@@ -103,13 +103,16 @@ public class InfoCommand : MaiCommandBase
             }
 
             var userRecordBytes =
-                await MaiDataManager.Instance.GetUserPlayRecordsInBytesAsync(
-                    useAssignedUserId ? userId : context.UserId);
+                await MaiDataManager.Instance.GetUserPlayRecordsInBytesAsync(userId);
 
             var queryTime = DateTime.UtcNow - startTime;
             var generationStartTime = DateTime.UtcNow;
 
-            var userName = await GroupMemberCommandBase.GetNickname(userId) ?? "未知";
+            var userName = await GroupMemberCommandBase.GetNickname(userId, context.ChatId) ?? "未知";
+
+            var sceneUserId = string.Equals(userId, context.UserId, StringComparison.Ordinal)
+                ? context.SceneUserId
+                : GroupMemberDataManager.Instance?.GetSceneUserId(context.ChatId, userId) ?? userId;
 
             if (userRecordBytes != null)
             {
@@ -135,17 +138,15 @@ public class InfoCommand : MaiCommandBase
 
                 imageString = await ImageGenerationHandler.Instance.AddTask(InfoImageGenerator.Generate(song,
                     [.. songRecords],
-                    useAssignedUserId ? userId : context.UserId, userName, commandContext.HasFlag("--japan")));
+                    sceneUserId, userName, commandContext.HasFlag("--japan")));
 
+                await SendImage(context, imageString);
                 await SendMessage(context,
-                [
-                    new CqImageMsg("base64://" + imageString),
-                    $"查询用时 {queryTime.TotalMilliseconds}ms，图片生成用时 {(DateTime.UtcNow - generationStartTime).TotalMilliseconds}ms"
-                ]);
+                    $"查询用时 {queryTime.TotalMilliseconds}ms，图片生成用时 {(DateTime.UtcNow - generationStartTime).TotalMilliseconds}ms");
                 return;
             }
 
-            await SendMessage(context, ["无游玩记录"]);
+            await SendMessage(context, "无游玩记录");
         }
         else
         {
@@ -155,11 +156,9 @@ public class InfoCommand : MaiCommandBase
             imageString = await ImageGenerationHandler.Instance.AddTask(InfoImageGenerator.Generate(song, null,
                 null, null, null));
 
+            await SendImage(context, imageString);
             await SendMessage(context,
-            [
-                new CqImageMsg("base64://" + imageString),
-                $"查询用时 {queryTime.TotalMilliseconds}ms，图片生成用时 {(DateTime.UtcNow - generationStartTime).TotalMilliseconds}ms"
-            ]);
+                $"查询用时 {queryTime.TotalMilliseconds}ms，图片生成用时 {(DateTime.UtcNow - generationStartTime).TotalMilliseconds}ms");
         }
     }
 }

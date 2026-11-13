@@ -1,5 +1,4 @@
-using EleCho.GoCqHttpSdk.Post;
-using Sapphire.Data.Chuni;
+﻿using Sapphire.Data.Chuni;
 
 namespace Sapphire.Commands;
 
@@ -16,7 +15,7 @@ public class ChuniCommand : ChuniCommandBase
         DataManager = new ChuniDataManager();
     }
 
-    protected override async Task Process(CqMessagePostContext context)
+    protected override async Task Process(MessageContext context)
     {
         await SendMessage(context, ["chuni"]);
     }

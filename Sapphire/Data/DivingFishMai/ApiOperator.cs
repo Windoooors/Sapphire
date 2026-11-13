@@ -12,10 +12,10 @@ namespace Sapphire.Data.DivingFishMai;
 
 public static class ApiOperator
 {
-    private static readonly Dictionary<long, (string, DateTime)> UserCredentials = [];
+    private static readonly Dictionary<string, (string, DateTime)> UserCredentials = [];
 
     public static async Task<(string? result, HttpStatusCode? statusCode)> PostWithCredentials(string url,
-        Dictionary<string, string> requestBody, long userId, bool write = false)
+        Dictionary<string, string> requestBody, string userId, bool write = false)
     {
         if (!UserCredentials.TryGetValue(userId, out var userCredential) ||
             DateTime.UtcNow >= userCredential.Item2)
@@ -38,7 +38,7 @@ public static class ApiOperator
     }
 
     public static async Task<(string? result, HttpStatusCode? statusCode)> PostWithCredentials(string url,
-        HttpContent requestContent, long userId)
+        HttpContent requestContent, string userId)
     {
         if (!UserCredentials.TryGetValue(userId, out var userCredential) ||
             DateTime.UtcNow >= userCredential.Item2)
@@ -60,7 +60,7 @@ public static class ApiOperator
         return (stringResult, response.StatusCode);
     }
 
-    public static async Task<(string? result, HttpStatusCode? statusCode)> GetWithCredentials(string url, long userId)
+    public static async Task<(string? result, HttpStatusCode? statusCode)> GetWithCredentials(string url, string userId)
     {
         if (!UserCredentials.TryGetValue(userId, out var userCredential) ||
             DateTime.UtcNow >= userCredential.Item2)
@@ -81,7 +81,7 @@ public static class ApiOperator
         return (stringResult, response.StatusCode);
     }
 
-    private static async Task<bool> FetchUserCredentialAsync(long userId)
+    private static async Task<bool> FetchUserCredentialAsync(string userId)
     {
         var env = GetEnvironment();
 
@@ -127,7 +127,7 @@ public static class ApiOperator
         return SpEnvironmentHandler.Environment.DivingFish;
     }
 
-    public static string GetUserRefString(long userId)
+    public static string GetUserRefString(string userId)
     {
         var bytes =
             Encoding.UTF8.GetBytes(SpEnvironmentHandler.Environment.DivingFish.ClientId + userId);

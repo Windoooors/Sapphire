@@ -1,5 +1,4 @@
-using System.Net;
-using EleCho.GoCqHttpSdk.Post;
+﻿using System.Net;
 using Sapphire.Data.DivingFishMai;
 using Sapphire.Data.Mai;
 using Sapphire.Data.Mai.Dtos;
@@ -34,7 +33,7 @@ public class UpdateScoreCommand : MaiCommandBase
         ];
     }
 
-    private async Task UpdateDf(CqMessagePostContext context)
+    private async Task UpdateDf(MessageContext context)
     {
         if (DivingFishMaiDataManager.Instance == null)
         {
@@ -79,7 +78,7 @@ public class UpdateScoreCommand : MaiCommandBase
             await SendUnknownError(context);
     }
 
-    private async Task UpdateWahlap(CqMessagePostContext context)
+    private async Task UpdateWahlap(MessageContext context)
     {
         try
         {
@@ -142,7 +141,7 @@ public class UpdateScoreCommand : MaiCommandBase
         }
     }
 
-    protected override async Task ProcessWithArguments(CommandContext commandContext, CqMessagePostContext context)
+    protected override async Task ProcessWithArguments(CommandContext commandContext, MessageContext context)
     {
         if (commandContext.HasFlag("--diving-fish"))
         {

@@ -1,5 +1,4 @@
-using EleCho.GoCqHttpSdk.Post;
-using Sapphire.Data.DivingFishMai;
+﻿using Sapphire.Data.DivingFishMai;
 
 namespace Sapphire.Commands.MaiCommands;
 
@@ -22,7 +21,7 @@ public class BindCommand : MaiCommandBase
         ActivationSettingsIdentifier = "mai_bind.enabled";
     }
 
-    protected override async Task ProcessWithArguments(CommandContext commandContext, CqMessagePostContext context)
+    protected override async Task ProcessWithArguments(CommandContext commandContext, MessageContext context)
     {
         if (commandContext.HasFlag("--divingfish"))
         {

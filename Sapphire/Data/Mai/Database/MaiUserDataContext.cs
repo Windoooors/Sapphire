@@ -17,7 +17,7 @@ public class MaiUserDataContext : DbContext
     {
         var userRecordEntityBuilder = modelBuilder.Entity<MaiUserPlayRecordDto>();
         userRecordEntityBuilder.HasKey(x => x.UserId);
-        userRecordEntityBuilder.Property(x => x.UserId).ValueGeneratedNever();
+        userRecordEntityBuilder.Property(x => x.UserId).HasMaxLength(64).ValueGeneratedNever();
         userRecordEntityBuilder.Property(x => x.Data).HasColumnType("bytea").IsRequired();
     }
 }

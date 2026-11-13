@@ -1,7 +1,5 @@
-using System.Net;
+﻿using System.Net;
 using System.Text.Json;
-using EleCho.GoCqHttpSdk.Message;
-using EleCho.GoCqHttpSdk.Post;
 using Sapphire.Data.Wck;
 using Sapphire.Data.Wck.Dtos;
 using Sapphire.Environments;
@@ -18,7 +16,7 @@ public class WckSessionLogoutCommand : MaiCommandBase
         ActivationSettingsIdentifier = "mai_wck_logout.enabled";
     }
 
-    protected override async Task Process(CqMessagePostContext context)
+    protected override async Task Process(MessageContext context)
     {
         try
         {
@@ -43,23 +41,17 @@ public class WckSessionLogoutCommand : MaiCommandBase
 
             if (responseObject.Code != 200)
             {
-                await SendMessage(context, [
-                    new CqTextMsg("登出失败！")
-                ]);
+                await SendMessage(context, "登出失败！");
                 return;
             }
 
-            await SendMessage(context, [
-                new CqTextMsg("登出成功！")
-            ]);
+            await SendMessage(context, "登出成功！");
         }
         catch (Exception ex)
         {
             if (ex is HttpRequestException { StatusCode: HttpStatusCode.BadRequest })
             {
-                await SendMessage(context, [
-                    new CqTextMsg("登出失败！")
-                ]);
+                await SendMessage(context, "登出失败！");
                 return;
             }
 

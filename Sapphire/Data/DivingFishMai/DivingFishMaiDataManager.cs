@@ -15,7 +15,7 @@ public class DivingFishMaiDataManager
 
     public static DivingFishMaiDataManager? Instance { get; private set; }
 
-    public async Task<bool> UploadUserRecordsAsync(DfUserRecordUploadDto[] userRecords, long userId)
+    public async Task<bool> UploadUserRecordsAsync(DfUserRecordUploadDto[] userRecords, string userId)
     {
         var env = ApiOperator.GetEnvironment();
 
@@ -28,7 +28,7 @@ public class DivingFishMaiDataManager
         return true;
     }
 
-    public async Task<BindingUrlResponseDto?> GetBindUserUrlAsync(long userId)
+    public async Task<BindingUrlResponseDto?> GetBindUserUrlAsync(string userId)
     {
         var env = ApiOperator.GetEnvironment();
 
@@ -65,7 +65,7 @@ public class DivingFishMaiDataManager
         }
     }
 
-    public async Task<DfUserRecordsDto?> GetUserPlayRecordsAsync(long userId)
+    public async Task<DfUserRecordsDto?> GetUserPlayRecordsAsync(string userId)
     {
         var env = ApiOperator.GetEnvironment();
 

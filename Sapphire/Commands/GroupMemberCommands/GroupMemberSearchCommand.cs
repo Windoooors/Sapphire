@@ -1,5 +1,4 @@
 using System.Text;
-using EleCho.GoCqHttpSdk.Post;
 using Sapphire.Data.GroupMember;
 using Sapphire.Utils;
 
@@ -15,9 +14,9 @@ public class GroupMemberSearchCommand : GroupMemberCommandBase
         ActivationSettingsIdentifier = "group_member_search.enabled";
     }
 
-    protected override async Task ProcessWithArguments(CommandContext commandContext, CqMessagePostContext context)
+    protected override async Task ProcessWithArguments(CommandContext commandContext, MessageContext context)
     {
-        if (context is not CqGroupMessagePostContext groupMessageContext)
+        if (!context.IsGroup)
         {
             await SendWrongContextMessage(context);
             return;
@@ -31,18 +30,18 @@ public class GroupMemberSearchCommand : GroupMemberCommandBase
 
         if (string.IsNullOrEmpty(commandContext.Argument))
         {
-            await SendMessage(context, ["请指定查询范围"]);
+            await SendMessage(context, "请指定查询范围");
             return;
         }
 
-        var aliasPredicate = CreateMemberAliasPredicate(commandContext.Argument, groupMessageContext.GroupId);
+        var aliasPredicate = CreateMemberAliasPredicate(commandContext.Argument, context.ChatId);
 
         var searchResult = GroupMemberDataManager.Instance.AliasedUserIds.Where(aliasPredicate);
 
-        await SendMessage(context, [await BuildSearchResultString(searchResult)]);
+        await SendMessage(context, await BuildSearchResultString(searchResult));
     }
 
-    public static Func<(long groupId, long userId), bool> CreateMemberAliasPredicate(string? value, long groupId)
+    public static Func<(string groupId, string userId), bool> CreateMemberAliasPredicate(string? value, string groupId)
     {
         if (value?.Length == 0) return _ => true;
 
@@ -52,7 +51,7 @@ public class GroupMemberSearchCommand : GroupMemberCommandBase
             .Any(y => y.Contains(inputKey.ToLower())) ?? false) && x.groupId == groupId;
     }
 
-    private static async Task<string> BuildSearchResultString(IEnumerable<(long groupId, long userId)> userIds)
+    private static async Task<string> BuildSearchResultString(IEnumerable<(string groupId, string userId)> userIds)
     {
         var idSet = userIds.ToHashSet();
 

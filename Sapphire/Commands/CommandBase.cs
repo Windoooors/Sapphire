@@ -1,7 +1,6 @@
-using EleCho.GoCqHttpSdk;
-using EleCho.GoCqHttpSdk.Message;
-using EleCho.GoCqHttpSdk.Post;
+using QQBot;
 using Sapphire.Environments;
+using Serilog;
 
 namespace Sapphire.Commands;
 
@@ -52,18 +51,18 @@ public abstract class CommandBase
         foreach (var groupCommandBase in SubCommands) groupCommandBase.StartInitialize();
     }
 
-    protected virtual async Task ProcessDirectly(CqMessagePostContext context)
+    protected virtual async Task ProcessDirectly(MessageContext context)
     {
     }
 
-    public async Task ReceiveDirectly(CqMessagePostContext context)
+    public async Task ReceiveDirectly(MessageContext context)
     {
         await ProcessDirectly(context);
 
         foreach (var commandBase in SubCommands) await commandBase.ProcessDirectly(context);
     }
 
-    public async Task Receive(CommandContext commandContext, CqMessagePostContext context)
+    public async Task Receive(CommandContext commandContext, MessageContext context)
     {
         if (commandContext.Flags.Count == 0 && commandContext.Argument is null)
         {
@@ -74,29 +73,29 @@ public abstract class CommandBase
         await ProcessWithArguments(commandContext, context);
     }
 
-    protected virtual async Task Process(CqMessagePostContext context)
+    protected virtual async Task Process(MessageContext context)
     {
-        await SendMessage(context, ["dame"]);
+        await SendMessage(context, "dame");
     }
 
-    protected virtual async Task ProcessWithArguments(CommandContext commandContext, CqMessagePostContext context)
+    protected virtual async Task ProcessWithArguments(CommandContext commandContext, MessageContext context)
     {
-        await SendMessage(context, ["dame"]);
+        await SendMessage(context, "dame");
     }
 
-    public static async Task SendUnknownError(CqMessagePostContext context)
+    public static async Task SendUnknownError(MessageContext context)
     {
-        await SendMessage(context, ["出现了未知的错误"]);
+        await SendMessage(context, "出现了未知的错误");
     }
 
-    public static async Task SendArgumentError(CqMessagePostContext context)
+    public static async Task SendArgumentError(MessageContext context)
     {
-        await SendMessage(context, ["参数错误"]);
+        await SendMessage(context, "参数错误");
     }
 
-    public static async Task SendUnpermittedError(CqMessagePostContext context)
+    public static async Task SendUnpermittedError(MessageContext context)
     {
-        await SendMessage(context, ["您无权执行该命令"]);
+        await SendMessage(context, "您无权执行该命令");
     }
 
     public void OnExitCall()
@@ -110,63 +109,80 @@ public abstract class CommandBase
     {
     }
 
-    protected static async Task SendMessage(long id, CqMessage message, bool isGroup = true)
+    protected static async Task SendMessage(MessageContext context, params string[] messages)
     {
-        var session = Program.BotSessionHandler?.Session;
+        var text = string.Concat(messages);
 
-        if (session == null)
+        if (string.IsNullOrEmpty(text))
             return;
 
-        if (isGroup)
-            await session.SendGroupMessageAsync(id, message);
-        else
-            await session.SendPrivateMessageAsync(id, message);
-    }
-
-    protected static async Task<long?> SendMessage(CqMessagePostContext context, CqMessage message, bool reply = true)
-    {
-        var session = Program.BotSessionHandler?.Session;
-
-        if (session == null)
-            return null;
-
-        if (context is CqPrivateMessagePostContext privateMessageContext)
+        try
         {
-            var finalMessage = reply ? [new CqReplyMsg(privateMessageContext.MessageId), .. message] : message;
-            var result = await session.SendPrivateMessageAsync(privateMessageContext.UserId, finalMessage);
-            return result?.MessageId;
+            await context.Channel.SendMessageAsync(text, passiveSource: context.Message);
         }
-
-        if (context is CqGroupMessagePostContext groupMessageContext)
+        catch (Exception ex)
         {
-            var finalMessage = reply ? [new CqReplyMsg(groupMessageContext.MessageId), .. message] : message;
-            var result = await session.SendGroupMessageAsync(groupMessageContext.GroupId, finalMessage);
-            return result?.MessageId;
+            Log.Error(ex, "Error occurred while sending a message to {ChatId}", context.ChatId);
         }
-
-        return null;
     }
 
-    protected bool IsBotAdministrator(long qqId)
+    protected static async Task SendMessage(MessageContext context, string message)
     {
-        if (qqId == SpEnvironmentHandler.Environment.Sapphire.AdministratorQqId) return true;
+        if (string.IsNullOrEmpty(message))
+            return;
 
-        return false;
+        try
+        {
+            await context.Channel.SendMessageAsync(message, passiveSource: context.Message);
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Error occurred while sending a message to {ChatId}", context.ChatId);
+        }
     }
 
-    protected async Task<bool> IsGroupAdministrator(long qqId, CqGroupMessagePostContext groupMessageContext)
+    protected static async Task SendImage(MessageContext context, string base64Image)
     {
-        if (Program.BotSessionHandler.Session == null)
+        if (string.IsNullOrWhiteSpace(base64Image))
+            return;
+
+        try
+        {
+            using var attachment = new FileAttachment(Convert.FromBase64String(base64Image), "image.jpg");
+            await context.Channel.SendMessageAsync(attachment: attachment, passiveSource: context.Message);
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Error occurred while sending an image to {ChatId}", context.ChatId);
+        }
+    }
+
+    protected static bool IsBotAdministrator(MessageContext context)
+    {
+        var administratorOpenIds = SpEnvironmentHandler.Environment.Sapphire.AdministratorOpenIds;
+
+        if (administratorOpenIds.Length == 0)
             return false;
 
-        var info = await Program.BotSessionHandler.Session.GetGroupMemberInformationAsync(groupMessageContext.GroupId,
-            qqId);
+        if (administratorOpenIds.Contains(context.UserId, StringComparer.Ordinal))
+            return true;
 
-        if (info == null)
+        if (context.UnionOpenId != null &&
+            administratorOpenIds.Contains(context.UnionOpenId, StringComparer.Ordinal))
+            return true;
+
+        return !string.Equals(context.SceneUserId, context.UserId, StringComparison.Ordinal) &&
+               administratorOpenIds.Contains(context.SceneUserId, StringComparer.Ordinal);
+    }
+
+    protected bool IsGroupAdministrator(MessageContext context)
+    {
+        if (!context.IsGroup)
             return false;
 
-        if (info.Role is CqRole.Admin or CqRole.Owner) return true;
+        if (context.MemberRole is "owner" or "admin")
+            return true;
 
-        return false;
+        return IsBotAdministrator(context);
     }
 }

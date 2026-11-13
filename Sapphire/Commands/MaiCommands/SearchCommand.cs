@@ -1,5 +1,4 @@
-using System.Text;
-using EleCho.GoCqHttpSdk.Post;
+﻿using System.Text;
 using Sapphire.Data.Mai;
 using Sapphire.Data.Mai.Dtos;
 using Sapphire.Utils;
@@ -30,7 +29,7 @@ public class SearchCommand : MaiCommandBase
         ];
     }
 
-    protected override async Task ProcessWithArguments(CommandContext commandContext, CqMessagePostContext context)
+    protected override async Task ProcessWithArguments(CommandContext commandContext, MessageContext context)
     {
         var searchResult = new List<MaiSongDto>();
 

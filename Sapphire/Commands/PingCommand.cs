@@ -1,5 +1,4 @@
-using System.Text;
-using EleCho.GoCqHttpSdk.Post;
+﻿using System.Text;
 using SixLabors.ImageSharp.Diagnostics;
 
 namespace Sapphire.Commands;
@@ -13,7 +12,7 @@ public class PingCommand : CommandBase
         ActivationSettingsIdentifier = "ping.enabled";
     }
 
-    protected override async Task Process(CqMessagePostContext context)
+    protected override async Task Process(MessageContext context)
     {
         var stringBuilder = new StringBuilder("Pong!\n");
         stringBuilder.Append("未释放 ImageSharp.Image 实例数量：");

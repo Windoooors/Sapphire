@@ -1,6 +1,5 @@
 using System.Text;
-using EleCho.GoCqHttpSdk.Message;
-using EleCho.GoCqHttpSdk.Post;
+using Sapphire.Data.GroupMember;
 using Sapphire.Data.Mai;
 using Sapphire.Data.Mai.Dtos;
 using Sapphire.Environments;
@@ -114,7 +113,7 @@ public class BestListCommand : MaiCommandBase
         return result;
     }
 
-    protected override async Task ProcessWithArguments(CommandContext commandContext, CqMessagePostContext context)
+    protected override async Task ProcessWithArguments(CommandContext commandContext, MessageContext context)
     {
         var useJp = commandContext.HasFlag("--japan");
         var usePc = commandContext.HasFlag("--play-count");
@@ -158,13 +157,13 @@ public class BestListCommand : MaiCommandBase
         }, usePc, useFit, useJp);
     }
 
-    protected override async Task Process(CqMessagePostContext context)
+    protected override async Task Process(MessageContext context)
     {
         await ProcessBase(context, context.UserId, (_, _, _, _) => true,
             false, false, false);
     }
 
-    private async Task ProcessBase(CqMessagePostContext context, long userId,
+    private async Task ProcessBase(MessageContext context, string userId,
         Func<int, MaiPlayRecord, MaiSongDto, int, bool> filter,
         bool usePc, bool useFit, bool useJpLevel)
     {
@@ -239,25 +238,27 @@ public class BestListCommand : MaiCommandBase
         var queryTime = DateTime.UtcNow - startTime;
         var generationStartTime = DateTime.UtcNow;
 
-        var userName = await GroupMemberCommandBase.GetNickname(userId) ?? "未知";
+        var userName = await GroupMemberCommandBase.GetNickname(userId, context.ChatId) ?? "未知";
+
+        var sceneUserId = string.Equals(userId, context.UserId, StringComparison.Ordinal)
+            ? context.SceneUserId
+            : GroupMemberDataManager.Instance?.GetSceneUserId(context.ChatId, userId) ?? userId;
 
         var dataObject = new BestListData
         {
             NewBestList = recordsNewSorted,
             OldBestList = recordsOldSorted,
             UserName = userName,
-            UserId = userId
+            UserId = sceneUserId
         };
 
         var imageResult =
             await ImageGenerationHandler.Instance.AddTask(
                 BestListImageGenerator.Generate(dataObject, useJpLevel, useFit));
         var generationTime = DateTime.UtcNow - generationStartTime;
+        await SendImage(context, imageResult);
         await SendMessage(context,
-        [
-            new CqImageMsg("base64://" + imageResult),
-            $"查询用时 {queryTime.TotalMilliseconds}ms，图片生成用时 {generationTime.TotalMilliseconds}ms"
-        ]);
+            $"查询用时 {queryTime.TotalMilliseconds}ms，图片生成用时 {generationTime.TotalMilliseconds}ms");
     }
 
     public class BestListData
@@ -265,6 +266,6 @@ public class BestListCommand : MaiCommandBase
         public required IEnumerable<(int, MaiPlayRecord)> NewBestList { get; init; }
         public required IEnumerable<(int, MaiPlayRecord)> OldBestList { get; init; }
         public required string UserName { get; init; }
-        public required long UserId { get; set; }
+        public required string UserId { get; set; }
     }
 }

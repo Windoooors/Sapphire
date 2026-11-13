@@ -1,7 +1,5 @@
 using System.Net.Http.Json;
 using System.Text.Json;
-using EleCho.GoCqHttpSdk.Message;
-using EleCho.GoCqHttpSdk.Post;
 using Sapphire.Data.Wck.Dtos;
 using Sapphire.Environments;
 
@@ -17,7 +15,7 @@ public class WckSessionLoginCommand : MaiCommandBase // Wck stands for WahlapCon
         ActivationSettingsIdentifier = "mai_wck_login.enabled";
     }
 
-    protected override async Task ProcessWithArguments(CommandContext commandContext, CqMessagePostContext context)
+    protected override async Task ProcessWithArguments(CommandContext commandContext, MessageContext context)
     {
         try
         {
@@ -27,7 +25,7 @@ public class WckSessionLoginCommand : MaiCommandBase // Wck stands for WahlapCon
             request.Content = JsonContent.Create(new SessionLoginRequestDto
             {
                 WechatQrCode = commandContext.Argument ?? "",
-                QqId = context.UserId
+                OpenId = context.UserId
             });
 
             using var cts = new CancellationTokenSource(
@@ -50,23 +48,17 @@ public class WckSessionLoginCommand : MaiCommandBase // Wck stands for WahlapCon
                 switch (responseObject.Code)
                 {
                     case 402:
-                        await SendMessage(context, [
-                            new CqTextMsg("登录失败！可能是因为此账号没有登出")
-                        ]);
+                        await SendMessage(context, "登录失败！可能是因为此账号没有登出");
                         break;
                     case 403:
-                        await SendMessage(context, [
-                            new CqTextMsg("登录失败！此二维码已过期")
-                        ]);
+                        await SendMessage(context, "登录失败！此二维码已过期");
                         break;
                 }
 
                 return;
             }
 
-            await SendMessage(context, [
-                new CqTextMsg("登录成功！\n使用查询功能完毕后请记得登出，否则无法登入游戏\n如要登出，请在此发送指令 \"logout\"")
-            ]);
+            await SendMessage(context, "登录成功！\n使用查询功能完毕后请记得登出，否则无法登入游戏\n如要登出，请在此发送指令 \"logout\"");
         }
         catch (Exception)
         {

@@ -1,5 +1,4 @@
-using EleCho.GoCqHttpSdk.Post;
-using Sapphire.Utils;
+﻿using Sapphire.Utils;
 
 namespace Sapphire.Commands;
 
@@ -65,7 +64,7 @@ public class IcsAssistantCommand : CommandBase
 
     protected override async Task ProcessWithArguments(
         CommandContext commandContext,
-        CqMessagePostContext context)
+        MessageContext context)
     {
         var numberString = commandContext.Argument;
         var target = commandContext.GetFlag("--target") ?? "hex";

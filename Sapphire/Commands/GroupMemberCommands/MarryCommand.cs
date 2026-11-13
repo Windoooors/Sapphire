@@ -1,13 +1,11 @@
-using EleCho.GoCqHttpSdk.Message;
-using EleCho.GoCqHttpSdk.Post;
-using Sapphire.Data.GroupMember;
+﻿using Sapphire.Data.GroupMember;
 using Sapphire.ImageGeneration;
 
 namespace Sapphire.Commands.GroupMemberCommands;
 
 public class MarryCommand : GroupMemberCommandBase
 {
-    private static readonly Dictionary<long, Dictionary<long, Pairing>> Pairings = new();
+    private static readonly Dictionary<string, Dictionary<string, Pairing>> Pairings = new();
     private static readonly Lock PairingLock = new();
     private static readonly Random Random = new();
 
@@ -41,7 +39,7 @@ public class MarryCommand : GroupMemberCommandBase
             {
                 if (!Pairings.TryGetValue(marriage.GroupId, out var pairs))
                 {
-                    pairs = new Dictionary<long, Pairing>();
+                    pairs = new Dictionary<string, Pairing>();
                     Pairings[marriage.GroupId] = pairs;
                 }
 
@@ -51,9 +49,9 @@ public class MarryCommand : GroupMemberCommandBase
         }
     }
 
-    protected override async Task Process(CqMessagePostContext context)
+    protected override async Task Process(MessageContext context)
     {
-        if (context is not CqGroupMessagePostContext groupMessageContext)
+        if (!context.IsGroup)
         {
             await SendWrongContextMessage(context);
             return;
@@ -65,12 +63,12 @@ public class MarryCommand : GroupMemberCommandBase
             return;
         }
 
-        var groupId = groupMessageContext.GroupId;
-        var userId = groupMessageContext.UserId;
+        var groupId = context.ChatId;
+        var userId = context.UserId;
 
         if (!GroupMemberDataManager.Instance.UserPool.TryGetValue(groupId, out var group))
         {
-            await GroupMemberDataManager.Instance.AddUserToPool(userId, groupId);
+            await GroupMemberDataManager.Instance.AddUserToPool(userId, context.SceneUserId, groupId);
 
             await SendNoAvailableMemberMessage(context);
 
@@ -78,7 +76,7 @@ public class MarryCommand : GroupMemberCommandBase
         }
 
         if (!group.Contains(userId))
-            await GroupMemberDataManager.Instance.AddUserToPool(userId, groupId);
+            await GroupMemberDataManager.Instance.AddUserToPool(userId, context.SceneUserId, groupId);
 
         if (group.Count < 2)
         {
@@ -94,33 +92,33 @@ public class MarryCommand : GroupMemberCommandBase
             return;
         }
 
-        if (!await SendMessage(groupMessageContext, partnerId.Value))
+        if (!await SendPairingMessage(context, partnerId))
         {
-            await RemovePairing(groupId, userId, partnerId.Value);
+            await RemovePairing(groupId, userId, partnerId);
             await Process(context);
         }
     }
 
-    private static async Task<long?> EnsurePairsAndGetPartner(
-        long groupId,
-        IEnumerable<long> groupMembers,
-        long currentUserId)
+    private static async Task<string?> EnsurePairsAndGetPartner(
+        string groupId,
+        IEnumerable<string> groupMembers,
+        string currentUserId)
     {
         var manager = GroupMemberDataManager.Instance;
 
         if (manager == null)
             return null;
 
-        List<(long UserId, long PartnerId)> removedPairs;
-        (long UserId, long PartnerId)? addedPair = null;
-        long? partnerId;
+        List<(string UserId, string PartnerId)> removedPairs;
+        (string UserId, string PartnerId)? addedPair = null;
+        string? partnerId;
         var marriedAt = DateTime.UtcNow;
 
         lock (PairingLock)
         {
             if (!Pairings.TryGetValue(groupId, out var pairs))
             {
-                pairs = new Dictionary<long, Pairing>();
+                pairs = new Dictionary<string, Pairing>();
                 Pairings[groupId] = pairs;
             }
 
@@ -171,11 +169,11 @@ public class MarryCommand : GroupMemberCommandBase
         return partnerId;
     }
 
-    private static List<(long UserId, long PartnerId)> CleanupInvalidPairings(
-        HashSet<long> members,
-        Dictionary<long, Pairing> pairs)
+    private static List<(string UserId, string PartnerId)> CleanupInvalidPairings(
+        HashSet<string> members,
+        Dictionary<string, Pairing> pairs)
     {
-        var removedPairs = new List<(long UserId, long PartnerId)>();
+        var removedPairs = new List<(string UserId, string PartnerId)>();
 
         foreach (var pair in pairs.ToArray())
         {
@@ -203,7 +201,7 @@ public class MarryCommand : GroupMemberCommandBase
         return removedPairs;
     }
 
-    private static async Task RemovePairing(long groupId, long userId, long partnerId)
+    private static async Task RemovePairing(string groupId, string userId, string partnerId)
     {
         lock (PairingLock)
         {
@@ -221,9 +219,9 @@ public class MarryCommand : GroupMemberCommandBase
     }
 
     private static void RemovePairFromMemory(
-        Dictionary<long, Pairing> pairs,
-        long userId,
-        long partnerId)
+        Dictionary<string, Pairing> pairs,
+        string userId,
+        string partnerId)
     {
         if (pairs.TryGetValue(userId, out var userPairing) &&
             userPairing.PartnerId == partnerId)
@@ -234,11 +232,11 @@ public class MarryCommand : GroupMemberCommandBase
             pairs.Remove(partnerId);
     }
 
-    private async Task<bool> SendMessage(
-        CqGroupMessagePostContext groupMessageContext,
-        long userId)
+    private async Task<bool> SendPairingMessage(
+        MessageContext context,
+        string userId)
     {
-        var nickname = await GetNickname(userId, groupMessageContext.GroupId, true);
+        var nickname = await GetNickname(userId, context.ChatId, true);
 
         if (GroupMemberDataManager.Instance == null)
             return false;
@@ -247,24 +245,24 @@ public class MarryCommand : GroupMemberCommandBase
         {
             await GroupMemberDataManager.Instance.RemoveUserFromPool(
                 userId,
-                groupMessageContext.GroupId);
+                context.ChatId);
 
             return false;
         }
 
-        await SendMessage(groupMessageContext, [
-            new CqImageMsg("base64://" +
-                           await ImageGeneratorFunctions.GetUserAvatarBase64Async(userId, 640)),
-            $"您今天的对象是 {nickname} ({userId})！"
-        ]);
+        var sceneUserId = GroupMemberDataManager.Instance.GetSceneUserId(context.ChatId, userId) ?? userId;
+
+        await SendImage(context,
+            await ImageGeneratorFunctions.GetUserAvatarBase64Async(sceneUserId, 640));
+        await SendMessage(context, $"您今天的对象是 {nickname} ({userId})！");
 
         return true;
     }
 
-    private async Task SendNoAvailableMemberMessage(CqMessagePostContext context)
+    private async Task SendNoAvailableMemberMessage(MessageContext context)
     {
-        await SendMessage(context, ["无可娶群友"]);
+        await SendMessage(context, "无可娶群友");
     }
 
-    private sealed record Pairing(long PartnerId, DateTime MarriedAt);
+    private sealed record Pairing(string PartnerId, DateTime MarriedAt);
 }

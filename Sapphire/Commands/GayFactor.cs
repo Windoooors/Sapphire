@@ -1,6 +1,5 @@
-using System.IO.Hashing;
+﻿using System.IO.Hashing;
 using System.Text;
-using EleCho.GoCqHttpSdk.Post;
 
 namespace Sapphire.Commands;
 
@@ -14,7 +13,7 @@ public class GayFactor : CommandBase
         ActivationSettingsIdentifier = "gay_factor.enabled";
     }
 
-    protected override async Task ProcessWithArguments(CommandContext commandContext, CqMessagePostContext context)
+    protected override async Task ProcessWithArguments(CommandContext commandContext, MessageContext context)
     {
         var name = commandContext.Argument?.Trim();
 

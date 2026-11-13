@@ -19,6 +19,7 @@ public class SettingsMetadataContext : DbContext
 
         itemEntityBuilder
             .Property(s => s.ChatId)
+            .HasMaxLength(64)
             .ValueGeneratedNever();
 
         itemEntityBuilder.HasKey(x => new

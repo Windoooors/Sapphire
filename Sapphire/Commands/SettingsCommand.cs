@@ -1,5 +1,4 @@
 using System.Text;
-using EleCho.GoCqHttpSdk.Post;
 using Sapphire.Data.Settings;
 using Sapphire.UserSettings;
 
@@ -13,7 +12,7 @@ public class SettingsCommand : CommandBase
         DirectCommandHeads = ["settings"];
     }
 
-    protected override async Task Process(CqMessagePostContext context)
+    protected override async Task Process(MessageContext context)
     {
         if (SettingsDataManager.Instance == null)
         {
@@ -39,21 +38,20 @@ public class SettingsCommand : CommandBase
             }
         }
 
-        await SendMessage(context, [stringBuilder.ToString()]);
+        await SendMessage(context, stringBuilder.ToString());
     }
 
-    protected override async Task ProcessWithArguments(CommandContext commandContext, CqMessagePostContext context)
+    protected override async Task ProcessWithArguments(CommandContext commandContext, MessageContext context)
     {
-        if (context is CqGroupMessagePostContext groupMessageContext)
-            if (!IsBotAdministrator(context.UserId) && !await IsGroupAdministrator(context.UserId, groupMessageContext))
-            {
-                await SendUnpermittedError(context);
-                return;
-            }
+        if (context.IsGroup && !IsBotAdministrator(context) && !IsGroupAdministrator(context))
+        {
+            await SendUnpermittedError(context);
+            return;
+        }
 
         if (!SettingsItems.DefaultValues.ContainsKey(commandContext.Argument ?? ""))
         {
-            await SendMessage(context, ["未找到设置项"]);
+            await SendMessage(context, "未找到设置项");
             return;
         }
 
@@ -66,6 +64,6 @@ public class SettingsCommand : CommandBase
         var value = SettingsDataManager.Instance.GetValue(context, commandContext.Argument ?? "");
         await SettingsDataManager.Instance.SetValue(context, commandContext.Argument ?? "", value = !value);
 
-        await SendMessage(context, [$"{value}"]);
+        await SendMessage(context, $"{value}");
     }
 }

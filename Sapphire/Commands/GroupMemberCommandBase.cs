@@ -1,7 +1,5 @@
+using System.Collections.Concurrent;
 using System.Text;
-using EleCho.GoCqHttpSdk;
-using EleCho.GoCqHttpSdk.Action;
-using EleCho.GoCqHttpSdk.Post;
 using Sapphire.Commands.GroupMemberCommands;
 using Sapphire.Data.GroupMember;
 
@@ -9,9 +7,17 @@ namespace Sapphire.Commands;
 
 public abstract class GroupMemberCommandBase : CommandBase
 {
+    private static readonly ConcurrentDictionary<string, string> KnownNames = new(StringComparer.Ordinal);
+
     protected static GroupMemberDataManager? DataManager;
 
-    public static bool TryGetUsers(CqMessagePostContext context, string key, out long[]? userIds)
+    public static void RememberName(string userId, string? displayName)
+    {
+        if (!string.IsNullOrWhiteSpace(displayName))
+            KnownNames[userId] = displayName;
+    }
+
+    public static bool TryGetUsers(MessageContext context, string key, out string[]? userIds)
     {
         if (GroupMemberDataManager.Instance == null)
         {
@@ -19,89 +25,78 @@ public abstract class GroupMemberCommandBase : CommandBase
             return false;
         }
 
-        if (context is CqGroupMessagePostContext groupContext)
+        if (!context.IsGroup)
         {
-            var result = MatchExact(key);
-            if (result.Count > 0)
-            {
-                userIds = result.ToArray();
-                return true;
-            }
-
-            var predicate = GroupMemberSearchCommand.CreateMemberAliasPredicate(key, groupContext.GroupId);
-            result.AddRange(
-                GroupMemberDataManager.Instance.AliasedUserIds.Where(predicate).Select(x => x.userId) ?? []);
-
-            if (result.Count > 0)
-            {
-                userIds = result.ToArray();
-                return true;
-            }
+            userIds = [];
+            return true;
         }
 
-        if (long.TryParse(key, out var id))
+        var result = MatchExact(key, context.ChatId);
+        if (result.Count > 0)
         {
-            userIds = [id];
+            userIds = result.Distinct().ToArray();
+            return true;
+        }
+
+        var predicate = GroupMemberSearchCommand.CreateMemberAliasPredicate(key, context.ChatId);
+        result.AddRange(GroupMemberDataManager.Instance.AliasedUserIds
+            .Where(predicate)
+            .Select(x => x.userId));
+
+        if (result.Count > 0)
+        {
+            userIds = result.Distinct().ToArray();
+            return true;
+        }
+
+        var byId = GroupMemberDataManager.Instance.FindUserIds(context.ChatId, key);
+        if (byId.Count > 0)
+        {
+            userIds = byId.ToArray();
             return true;
         }
 
         userIds = [];
         return true;
 
-        List<long> MatchExact(string searchKey)
+        List<string> MatchExact(string searchKey, string groupId)
         {
-            var result = new List<long>();
+            var matched = new List<string>();
 
             if (GroupMemberDataManager.Instance?.AliasToUserIds.TryGetValue(
                     searchKey.ToLower(), out var value) ?? false)
-                result.AddRange(value.Where(x => x.groupId == groupContext.GroupId)
+                matched.AddRange(value.Where(x => x.groupId == groupId)
                     .Select(x => x.userId));
 
-            return result.Distinct().ToList();
+            return matched.Distinct().ToList();
         }
     }
 
-    public static async Task<string?> GetNickname(long id, long groupId, bool forceGroupNickname = false)
+    public static Task<string?> GetNickname(string userId, string groupId, bool forceGroupNickname = false)
     {
-        if (Program.BotSessionHandler.Session == null)
-            return null;
+        var groupName = GroupMemberDataManager.Instance?.GetDisplayName(groupId, userId);
+        if (!string.IsNullOrWhiteSpace(groupName))
+            return Task.FromResult<string?>(groupName);
 
-        var memberInformation = await Program.BotSessionHandler.Session.GetGroupMemberInformationAsync(groupId, id);
-
-        if (!forceGroupNickname)
-            if (memberInformation == null || memberInformation.Status == CqActionStatus.Failed)
-                return await GetNickname(id);
-
-        if (memberInformation == null || memberInformation.Status == CqActionStatus.Failed)
-            return null;
-
-        var nickname = memberInformation.GroupNickname == ""
-            ? memberInformation.Nickname
-            : memberInformation.GroupNickname;
-
-        return nickname;
+        return KnownNames.TryGetValue(userId, out var name)
+            ? Task.FromResult<string?>(name)
+            : Task.FromResult<string?>(null);
     }
 
-    public static async Task<string?> GetNickname(long id)
+    public static Task<string?> GetNickname(string userId)
     {
-        if (Program.BotSessionHandler.Session == null)
-            return null;
-
-        var memberInformation = await Program.BotSessionHandler.Session.GetStrangerInformationAsync(id);
-
-        if (memberInformation == null || memberInformation.Status == CqActionStatus.Failed) return null;
-
-        var nickname = memberInformation.Nickname;
-        return nickname;
+        return KnownNames.TryGetValue(userId, out var name)
+            ? Task.FromResult<string?>(name)
+            : Task.FromResult<string?>(null);
     }
 
-    protected static async Task SendMemberNotFoundError(CqMessagePostContext context)
+    protected static async Task SendMemberNotFoundError(MessageContext context)
     {
-        await SendMessage(context, ["未找到匹配的用户"]);
+        await SendMessage(context, "未找到匹配的用户");
     }
 
-    protected static async Task<string> BuildMemberListString(IEnumerable<long> users, string commandHint, string hint,
-        long groupId)
+    protected static async Task<string> BuildMemberListString(IEnumerable<string> users, string commandHint,
+        string hint, string groupId)
     {
         var userSet = users.ToHashSet();
 
@@ -127,8 +122,8 @@ public abstract class GroupMemberCommandBase : CommandBase
         return stringBuilder.ToString().Trim();
     }
 
-    protected async Task SendWrongContextMessage(CqMessagePostContext context)
+    protected static async Task SendWrongContextMessage(MessageContext context)
     {
-        await SendMessage(context, ["该功能仅支持在群聊中使用"]);
+        await SendMessage(context, "该功能仅支持在群聊中使用");
     }
 }

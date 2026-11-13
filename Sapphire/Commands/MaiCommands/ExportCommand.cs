@@ -1,5 +1,4 @@
-using EleCho.GoCqHttpSdk.Post;
-using Sapphire.Data.DivingFishMai.Dtos;
+﻿using Sapphire.Data.DivingFishMai.Dtos;
 using Sapphire.Data.Mai;
 using Sapphire.Data.Mai.Dtos;
 using Sapphire.Environments;
@@ -26,7 +25,7 @@ public class ExportCommand : MaiCommandBase
         ActivationSettingsIdentifier = "mai_export.enabled";
     }
 
-    private async Task ExportDf(CqMessagePostContext context)
+    private async Task ExportDf(MessageContext context)
     {
         if (MaiDataManager.Instance == null || DivingFishMaiDataManager == null)
         {
@@ -88,7 +87,7 @@ public class ExportCommand : MaiCommandBase
             [$"上传了 {uploadContentsArray.Length} 项游玩记录（包括已删除曲目）"]);
     }
 
-    protected override async Task ProcessWithArguments(CommandContext commandContext, CqMessagePostContext context)
+    protected override async Task ProcessWithArguments(CommandContext commandContext, MessageContext context)
     {
         if (commandContext.HasFlag("--diving-fish"))
         {

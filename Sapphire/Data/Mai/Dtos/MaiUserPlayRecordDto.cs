@@ -1,7 +1,10 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace Sapphire.Data.Mai.Dtos;
 
 public record MaiUserPlayRecordDto
 {
-    public long UserId { get; init; }
+    [MaxLength(64)] public string UserId { get; init; } = "";
+
     public byte[]? Data { get; set; } = [];
 }
