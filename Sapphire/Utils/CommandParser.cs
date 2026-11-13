@@ -8,14 +8,15 @@ namespace Sapphire.Utils;
 
 public class CommandParser(IEnumerable<CommandBase> rootCommands, string[] commandPrefixes)
 {
-    private static readonly Dictionary<string, string> _shortcuts = new(StringComparer.OrdinalIgnoreCase)
+    private static readonly Dictionary<string, string> Shortcuts = new(StringComparer.OrdinalIgnoreCase)
     {
         { "score", "info -s" },
         { "ap50", "b50 -ap" },
         { "app50", "b50 -app" },
         { "fc50", "b50 -fc" },
         { "fcp50", "b50 -fcp" },
-        { "pc50", "b50 -pc" }
+        { "pc50", "b50 -pc" },
+        { "f50", "b50 -f" }
     };
 
     public async Task ParseAndExecute(CqMessagePostContext context)
@@ -27,7 +28,7 @@ public class CommandParser(IEnumerable<CommandBase> rootCommands, string[] comma
 
         var commandLine = context.Message.Text;
 
-        foreach (var keyValuePair in _shortcuts)
+        foreach (var keyValuePair in Shortcuts)
             if (commandLine.StartsWith(keyValuePair.Key))
             {
                 commandLine = keyValuePair.Value + commandLine.Substring(keyValuePair.Key.Length);

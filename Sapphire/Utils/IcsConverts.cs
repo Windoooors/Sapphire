@@ -250,41 +250,37 @@ public static class IntegerConverter
         {
             var hex = value.Substring(2);
 
-            if (hex.Length != bitWidth / 4)
-                throw new FormatException("Invalid hexadecimal length.");
-
-            if (!ulong.TryParse(
-                    hex,
-                    NumberStyles.AllowHexSpecifier,
-                    Invariant,
-                    out var bits))
+            if (hex.Length == 0)
                 throw new FormatException("Invalid hexadecimal representation.");
 
-            result = new BigInteger(bits);
+            if (!BigInteger.TryParse(
+                    "0" + hex,
+                    NumberStyles.AllowHexSpecifier,
+                    Invariant,
+                    out result))
+                throw new FormatException("Invalid hexadecimal representation.");
 
-            if (signed && (bits & (1UL << (bitWidth - 1))) != 0)
+            if (signed && IsNegative(result, bitWidth))
                 result -= BigInteger.One << bitWidth;
         }
         else if (value.StartsWith("0b", StringComparison.OrdinalIgnoreCase))
         {
             var binary = value.Substring(2);
 
-            if (binary.Length != bitWidth)
-                throw new FormatException("Invalid binary length.");
+            if (binary.Length == 0)
+                throw new FormatException("Invalid binary representation.");
 
-            ulong bits = 0;
+            result = BigInteger.Zero;
 
             foreach (var c in binary)
             {
                 if (c != '0' && c != '1')
                     throw new FormatException("Invalid binary representation.");
 
-                bits = (bits << 1) | (byte)(c - '0');
+                result = (result << 1) | (byte)(c - '0');
             }
 
-            result = new BigInteger(bits);
-
-            if (signed && (bits & (1UL << (bitWidth - 1))) != 0)
+            if (signed && IsNegative(result, bitWidth))
                 result -= BigInteger.One << bitWidth;
         }
         else
@@ -297,6 +293,21 @@ public static class IntegerConverter
                 throw new FormatException("Invalid decimal representation.");
         }
 
+        ValidateRange(result, bitWidth, signed);
+
+        return result;
+    }
+
+    private static bool IsNegative(BigInteger bits, int bitWidth)
+    {
+        return (bits & (BigInteger.One << (bitWidth - 1))) != 0;
+    }
+
+    private static void ValidateRange(
+        BigInteger value,
+        int bitWidth,
+        bool signed)
+    {
         var min = signed
             ? -(BigInteger.One << (bitWidth - 1))
             : BigInteger.Zero;
@@ -305,9 +316,7 @@ public static class IntegerConverter
             ? (BigInteger.One << (bitWidth - 1)) - 1
             : (BigInteger.One << bitWidth) - 1;
 
-        if (result < min || result > max)
+        if (value < min || value > max)
             throw new OverflowException("Integer value is out of range.");
-
-        return result;
     }
 }

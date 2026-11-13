@@ -101,17 +101,13 @@ public abstract class CommandBase
 
     public void OnExitCall()
     {
-        foreach (var commandBase in SubCommands)
-        {
-            commandBase.OnExitCall();
-        }
-        
+        foreach (var commandBase in SubCommands) commandBase.OnExitCall();
+
         OnExit();
     }
 
     protected virtual void OnExit()
     {
-        
     }
 
     protected static async Task SendMessage(long id, CqMessage message, bool isGroup = true)

@@ -234,8 +234,6 @@ public class MarryCommand : GroupMemberCommandBase
             pairs.Remove(partnerId);
     }
 
-    private sealed record Pairing(long PartnerId, DateTime MarriedAt);
-
     private async Task<bool> SendMessage(
         CqGroupMessagePostContext groupMessageContext,
         long userId)
@@ -267,4 +265,6 @@ public class MarryCommand : GroupMemberCommandBase
     {
         await SendMessage(context, ["无可娶群友"]);
     }
+
+    private sealed record Pairing(long PartnerId, DateTime MarriedAt);
 }

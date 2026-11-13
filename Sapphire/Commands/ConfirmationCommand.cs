@@ -1,6 +1,5 @@
 using EleCho.GoCqHttpSdk.Message;
 using EleCho.GoCqHttpSdk.Post;
-using Sapphire.Environments;
 
 namespace Sapphire.Commands;
 

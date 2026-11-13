@@ -1,5 +1,4 @@
-﻿using System.Text.RegularExpressions;
-using EleCho.GoCqHttpSdk;
+﻿using EleCho.GoCqHttpSdk;
 using Sapphire.Commands;
 using Sapphire.Data.Settings;
 using Sapphire.Environments;
@@ -34,10 +33,7 @@ public static class Program
 
         AppDomain.CurrentDomain.ProcessExit += (_, _) =>
         {
-            foreach (var groupCommand in GroupCommands)
-            {
-                groupCommand.OnExitCall();
-            }
+            foreach (var groupCommand in GroupCommands) groupCommand.OnExitCall();
 
             keepAlive.Set();
         };

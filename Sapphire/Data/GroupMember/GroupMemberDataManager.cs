@@ -55,7 +55,6 @@ public class GroupMemberDataManager
         await using var context = new GroupMemberDataContext();
 
         foreach (var marriage in marriages)
-        {
             context.GroupMemberMarriages.Add(new GroupMemberMarriageDto
             {
                 GroupId = groupId,
@@ -63,7 +62,6 @@ public class GroupMemberDataManager
                 PartnerId = marriage.PartnerId,
                 MarriedAt = marriedAt
             });
-        }
 
         await context.SaveChangesAsync();
     }
