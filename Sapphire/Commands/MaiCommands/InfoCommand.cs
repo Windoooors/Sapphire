@@ -1,10 +1,11 @@
-using QQBot;
+﻿using QQBot;
 using Sapphire.Data.GroupMember;
 using Sapphire.Data.Mai;
 using Sapphire.Data.Mai.Dtos;
 using Sapphire.Environments;
 using Sapphire.ImageGeneration;
 using Sapphire.ImageGeneration.ImageGenerators.MaiCommandImageGenerators;
+using Sapphire.Messages;
 
 namespace Sapphire.Commands.MaiCommands;
 
@@ -140,9 +141,12 @@ public class InfoCommand : MaiCommandBase
                     [.. songRecords],
                     sceneUserId, userName, commandContext.HasFlag("--japan")));
 
-                await SendImage(context, imageString);
                 await SendMessage(context,
-                    $"查询用时 {queryTime.TotalMilliseconds}ms，图片生成用时 {(DateTime.UtcNow - generationStartTime).TotalMilliseconds}ms");
+                [
+                    new ImageMessage(imageString),
+                    new TextMessage(
+                        $"查询用时 {queryTime.TotalMilliseconds}ms，图片生成用时 {(DateTime.UtcNow - generationStartTime).TotalMilliseconds}ms")
+                ]);
                 return;
             }
 
@@ -156,9 +160,12 @@ public class InfoCommand : MaiCommandBase
             imageString = await ImageGenerationHandler.Instance.AddTask(InfoImageGenerator.Generate(song, null,
                 null, null, null));
 
-            await SendImage(context, imageString);
             await SendMessage(context,
-                $"查询用时 {queryTime.TotalMilliseconds}ms，图片生成用时 {(DateTime.UtcNow - generationStartTime).TotalMilliseconds}ms");
+            [
+                new ImageMessage(imageString),
+                new TextMessage(
+                    $"查询用时 {queryTime.TotalMilliseconds}ms，图片生成用时 {(DateTime.UtcNow - generationStartTime).TotalMilliseconds}ms")
+            ]);
         }
     }
 }

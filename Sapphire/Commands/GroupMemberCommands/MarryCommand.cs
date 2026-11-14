@@ -1,5 +1,6 @@
 ﻿using Sapphire.Data.GroupMember;
 using Sapphire.ImageGeneration;
+using Sapphire.Messages;
 
 namespace Sapphire.Commands.GroupMemberCommands;
 
@@ -255,9 +256,13 @@ public class MarryCommand : GroupMemberCommandBase
 
         var sceneUserId = GroupMemberDataManager.Instance.GetSceneUserId(context.ChatId, userId) ?? userId;
 
-        await SendImage(context,
-            await ImageGeneratorFunctions.GetUserAvatarBase64Async(sceneUserId, 640));
-        await SendMessage(context, $"您今天的对象是 {nickname} ({userId})！");
+        var avatarBase64 = await ImageGeneratorFunctions.GetUserAvatarBase64Async(sceneUserId, 640);
+
+        await SendMessage(context,
+        [
+            new ImageMessage(avatarBase64),
+            new TextMessage($"您今天的对象是 {nickname} ({userId})！")
+        ]);
 
         return true;
     }

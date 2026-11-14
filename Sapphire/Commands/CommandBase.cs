@@ -1,5 +1,7 @@
+﻿using System.Text;
 using QQBot;
 using Sapphire.Environments;
+using Sapphire.Messages;
 using Serilog;
 
 namespace Sapphire.Commands;
@@ -109,13 +111,68 @@ public abstract class CommandBase
     {
     }
 
-    protected static async Task SendMessage(MessageContext context, params string[] messages)
+    protected static Task SendMessage(MessageContext context, params string[] messages)
     {
         var text = string.Concat(messages);
 
-        if (string.IsNullOrEmpty(text))
-            return;
+        return string.IsNullOrEmpty(text)
+            ? Task.CompletedTask
+            : SendSegmentsAsync(context, [new TextMessage(text)]);
+    }
 
+    protected static Task SendMessage(MessageContext context, string message)
+    {
+        return string.IsNullOrEmpty(message)
+            ? Task.CompletedTask
+            : SendSegmentsAsync(context, [new TextMessage(message)]);
+    }
+
+    /// <summary>
+    ///     按顺序发送图文混排片段。官方 API 的 msg_type 不能同时携带文本和富媒体，
+    ///     因此连续的文本会合并成一条文本消息，图片各自作为一条富媒体消息发送。
+    /// </summary>
+    protected static Task SendMessage(MessageContext context, params MessageSegment[] segments)
+    {
+        return SendSegmentsAsync(context, segments);
+    }
+
+    protected static Task SendImage(MessageContext context, string base64Image)
+    {
+        return string.IsNullOrWhiteSpace(base64Image)
+            ? Task.CompletedTask
+            : SendSegmentsAsync(context, [new ImageMessage(base64Image)]);
+    }
+
+    private static async Task SendSegmentsAsync(MessageContext context, MessageSegment[] segments)
+    {
+        var textBuffer = new StringBuilder();
+
+        foreach (var segment in segments)
+        {
+            switch (segment)
+            {
+                case TextMessage textMessage:
+                    textBuffer.Append(textMessage.Text);
+                    break;
+
+                case ImageMessage imageMessage:
+                    if (textBuffer.Length > 0)
+                    {
+                        await SendTextAsync(context, textBuffer.ToString());
+                        textBuffer.Clear();
+                    }
+
+                    await SendImageInternalAsync(context, imageMessage);
+                    break;
+            }
+        }
+
+        if (textBuffer.Length > 0)
+            await SendTextAsync(context, textBuffer.ToString());
+    }
+
+    private static async Task SendTextAsync(MessageContext context, string text)
+    {
         try
         {
             await context.Channel.SendMessageAsync(text, passiveSource: context.Message);
@@ -126,29 +183,14 @@ public abstract class CommandBase
         }
     }
 
-    protected static async Task SendMessage(MessageContext context, string message)
+    private static async Task SendImageInternalAsync(MessageContext context, ImageMessage image)
     {
-        if (string.IsNullOrEmpty(message))
+        if (string.IsNullOrWhiteSpace(image.Base64))
             return;
 
         try
         {
-            await context.Channel.SendMessageAsync(message, passiveSource: context.Message);
-        }
-        catch (Exception ex)
-        {
-            Log.Error(ex, "Error occurred while sending a message to {ChatId}", context.ChatId);
-        }
-    }
-
-    protected static async Task SendImage(MessageContext context, string base64Image)
-    {
-        if (string.IsNullOrWhiteSpace(base64Image))
-            return;
-
-        try
-        {
-            using var attachment = new FileAttachment(Convert.FromBase64String(base64Image), "image.jpg");
+            using var attachment = new FileAttachment(Convert.FromBase64String(image.Base64), image.Filename);
             await context.Channel.SendMessageAsync(attachment: attachment, passiveSource: context.Message);
         }
         catch (Exception ex)

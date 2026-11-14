@@ -1,6 +1,7 @@
 ﻿using Sapphire.Data.GroupMember;
 using Sapphire.Environments;
 using Sapphire.ImageGeneration;
+using Sapphire.Messages;
 using Sapphire.Utils;
 
 namespace Sapphire.Commands.GroupMemberCommands;
@@ -154,9 +155,13 @@ public class RapeCommand : GroupMemberCommandBase
 
         var sceneUserId = GroupMemberDataManager.Instance.GetSceneUserId(context.ChatId, userId) ?? userId;
 
-        await SendImage(context,
-            await ImageGeneratorFunctions.GetUserAvatarBase64Async(sceneUserId, 640));
-        await SendMessage(context, $"您把群友 {nickname} ({userId}) 配了");
+        var avatarBase64 = await ImageGeneratorFunctions.GetUserAvatarBase64Async(sceneUserId, 640);
+
+        await SendMessage(context,
+        [
+            new ImageMessage(avatarBase64),
+            new TextMessage($"您把群友 {nickname} ({userId}) 配了")
+        ]);
 
         return true;
     }

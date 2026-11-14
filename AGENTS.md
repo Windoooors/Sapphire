@@ -63,6 +63,7 @@ Sapphire/
 │   └── Chuni/
 ├── Environments/               # config.toml 模型与单例读取
 ├── ImageGeneration/            # ImageSharp 绘图：调色板、字体、图片生成器
+├── Messages/                   # 发送片段：TextMessage / ImageMessage
 ├── Migrations/                 # EF Core 迁移（按 DbContext 分目录）
 ├── UserSettings/               # 设置项定义（标识符、显示名、默认值）
 └── Utils/                      # BotClient、MigrationServer、解析器、日志、Timer、搜索归一化、进制转换
@@ -152,7 +153,7 @@ Sapphire.Migration/             # 旧库迁移工具（独立进程，Npgsql + W
 - `SupportedFlags` 中每个 `FlagSpec` 声明短名/长名、是否带值。`TakesValue = true` 时，值会一直收集到下一个 flag 为止。
 - 处理器里用**长名**查询：`commandContext.GetFlag("--bpm")`、`commandContext.HasFlag("--divingfish")`。`FlagSpec.Name` 就是 `LongName`，所以**一定要设置 `LongName`**，否则会存成空键。
 - 没有 flag 且没有位置参数时走 `Process`，否则走 `ProcessWithArguments`。`Argument` 是剩余 token 用空格拼接的字符串，可能为 `null`。
-- 输出统一用 `SendMessage(context, "text")` 或 `SendMessage(context, ["text"])`；图片用 `SendImage(context, base64)`。两者都是**被动回复**（`passiveSource: context.Message`），不再使用引用消息。
+- 输出统一用 `SendMessage(context, "text")`、`SendMessage(context, ["text"])`，或图文混排的 `SendMessage(context, [new TextMessage("..."), new ImageMessage(base64)])`；`SendImage` 仍保留为单图快捷方式。两者都是**被动回复**（`passiveSource: context.Message`），不再使用引用消息。
 - 官方被动回复限制：群聊 5 分钟 / 每条消息 5 次，单聊 60 分钟 / 4 次。不要把文本和图片拼在一条消息里（官方 `msg_type` 只能选一种）；图片和文本会拆成两条。
 - `CommandBase` 提供 `SendArgumentError` / `SendUnknownError` / `SendUnpermittedError`，mai 域另有 `SendUnauthorizedError` / `SendNotLoggedInError`。
 - 权限：`IsBotAdministrator(context)` 比对 `Sapphire.AdministratorOpenIds`；`IsGroupAdministrator(context)` 优先用事件里的 `MemberRole`（`owner`/`admin`），否则回退到 bot 管理员配置。
@@ -299,7 +300,8 @@ migrate <你的QQ号>
 - 封面：`Resources/Covers/<sapphireId>.png`、`Resources/CoversHd/<sapphireId>.png`，缺失时回退到 `0.png`。`PreloadCoverImages = true` 时启动即把 `Resources/Covers` 全部载入内存（`MaiImageGeneratorFunctions.LoadImages`）。
 - 这些 `Resources/` 运行时资源**不在 git 中**，需要本地或部署环境自行提供；`dotnet build` 不会自动复制。
 - 出图统一走 `ImageGenerationHandler.Instance.AddTask(...)`，由信号量按 `MaxParallelGenerationTaskCount` 限流；返回 base64 JPEG（质量 50）。
-- `CommandBase.SendImage` 把 base64 转成 `FileAttachment(ReadOnlyMemory<byte>)`，由 QQBot.Net 上传富媒体后发送；**文本和图片是两条消息**，注意被动回复次数。
+- 发送片段由 `Messages/TextMessage.cs`、`Messages/ImageMessage.cs` 提供；`CommandBase.SendMessage(context, segments)` 会按顺序合并连续文本、逐张发送图片。官方 API 的 `msg_type` 不能同时携带文本和富媒体，所以**调用层是图文混排，协议层会拆成文本/图片多条消息**；注意被动回复次数。
+- `CommandBase` 内部把图片 base64 转成 `FileAttachment(ReadOnlyMemory<byte>)`，由 QQBot.Net 上传富媒体后发送。
 - 头像 URL 由 `ImageGeneratorFunctions` 拼成 `https://q.qlogo.cn/qqapp/{AppId}/{openId}/{size}`；openId 传 `SceneUserId`（群内 `member_openid` / 单聊 `user_openid`）。
 - ImageSharp 对象实现 `IDisposable`，生成器里注意 `using`；`PingCommand` 会报告未释放的 Image 数量，可用于排查泄漏。
 - `Sapphire/sixlabors.lic` 是 SixLabors 许可凭证（Community，2028-01-19 到期）；升级 ImageSharp 前确认许可要求。
@@ -363,6 +365,7 @@ dotnet run --project Sapphire/Sapphire.csproj
 - WCK 服务按 `openid` 索引 session（不是 QQ 号）；Sapphire 侧 `SessionLoginRequestDto` / `WckDataManager` 已同步，改动时两边一起改。
 - QQBot.Net 0.2.0 不解析 `username` / `member_nickname` / `member_role` / `union_openid`；本项目依赖 `third_party/QQBot.Net` fork 的 `SocketMessage.Author*` 属性。升级 SDK 时先同步 fork，不要直接换回 NuGet 包。
 - `MaiAliases.CreatorUserId` 在新库是 `text`；旧别名 creator 已置 `NULL`，只有 bot 管理员能删除旧别名。
+- 图文混排只是调用层抽象：官方 API 会拆成文本/图片多条消息，连续文本合并、图片逐张发送；不要把“一条 `SendMessage`”误认为协议层只有一条消息。
 - 群聊 `migrate` 的 `--group` 必填，值是**旧库 QQ 群号**；不要传新 `group_openid`。私聊 `migrate` 不需要也不使用 `--group`，只迁移成绩和私聊设置。
 - 同一个 QQ 对多个旧群分别迁移会重复覆盖成绩、把别名合并到当前群。
 - 迁移服务必须先在主 bot 的 `[Migration] Enabled = true` 且 `Sapphire.Migration` 已连接；否则指令只会回“迁移服务未启用/未连接”。
