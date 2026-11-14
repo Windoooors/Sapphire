@@ -1,4 +1,4 @@
-﻿# AGENTS.md
+# AGENTS.md
 
 面向在本仓库中工作的 AI 编码代理的说明。开始改动前请先读完本文件；若本文件与代码不一致，以代码为准，并顺手修正本文件。
 
@@ -63,7 +63,7 @@ Sapphire/
 │   └── Chuni/
 ├── Environments/               # config.toml 模型与单例读取
 ├── ImageGeneration/            # ImageSharp 绘图：调色板、字体、图片生成器
-├── Messages/                   # 发送片段：TextMessage / ImageMessage
+├── Messages/                   # 消息链与片段：MessageChain / MessageSegment / TextMessage / ImageMessage
 ├── Migrations/                 # EF Core 迁移（按 DbContext 分目录）
 ├── UserSettings/               # 设置项定义（标识符、显示名、默认值）
 └── Utils/                      # BotClient、MigrationServer、解析器、日志、Timer、搜索归一化、进制转换
@@ -153,7 +153,7 @@ Sapphire.Migration/             # 旧库迁移工具（独立进程，Npgsql + W
 - `SupportedFlags` 中每个 `FlagSpec` 声明短名/长名、是否带值。`TakesValue = true` 时，值会一直收集到下一个 flag 为止。
 - 处理器里用**长名**查询：`commandContext.GetFlag("--bpm")`、`commandContext.HasFlag("--divingfish")`。`FlagSpec.Name` 就是 `LongName`，所以**一定要设置 `LongName`**，否则会存成空键。
 - 没有 flag 且没有位置参数时走 `Process`，否则走 `ProcessWithArguments`。`Argument` 是剩余 token 用空格拼接的字符串，可能为 `null`。
-- 输出统一用 `SendMessage(context, "text")`、`SendMessage(context, ["text"])`，或图文混排的 `SendMessage(context, [new TextMessage("..."), new ImageMessage(base64)])`；`SendImage` 仍保留为单图快捷方式。两者都是**被动回复**（`passiveSource: context.Message`），不再使用引用消息。
+- 输出统一用 `SendMessage(context, "text")` 或图文混排的 `SendMessage(context, ["文字", new ImageMessage(base64)])`。第二个参数是 `MessageChain`（`List<MessageSegment>`），集合表达式的元素类型缺省为 `MessageSegment`，而它定义了从 `string` 的隐式转换，所以字符串字面量/插值字符串可以直接当文本片段用，不必手写 `new TextMessage(...)`。两者都是**被动回复**（`passiveSource: context.Message`），不再使用引用消息。
 - 官方被动回复限制：群聊 5 分钟 / 每条消息 5 次，单聊 60 分钟 / 4 次。官方 media 消息支持 `content` + `attachment` 一起传；单图时文本会和图片合并成一条消息，多图时才按顺序拆分。
 - `CommandBase` 提供 `SendArgumentError` / `SendUnknownError` / `SendUnpermittedError`，mai 域另有 `SendUnauthorizedError` / `SendNotLoggedInError`。
 - 权限：`IsBotAdministrator(context)` 比对 `Sapphire.AdministratorOpenIds`；`IsGroupAdministrator(context)` 优先用事件里的 `MemberRole`（`owner`/`admin`），否则回退到 bot 管理员配置。
@@ -300,7 +300,7 @@ migrate <你的QQ号>
 - 封面：`Resources/Covers/<sapphireId>.png`、`Resources/CoversHd/<sapphireId>.png`，缺失时回退到 `0.png`。`PreloadCoverImages = true` 时启动即把 `Resources/Covers` 全部载入内存（`MaiImageGeneratorFunctions.LoadImages`）。
 - 这些 `Resources/` 运行时资源**不在 git 中**，需要本地或部署环境自行提供；`dotnet build` 不会自动复制。
 - 出图统一走 `ImageGenerationHandler.Instance.AddTask(...)`，由信号量按 `MaxParallelGenerationTaskCount` 限流；返回 base64 JPEG（质量 50）。
-- 发送片段由 `Messages/TextMessage.cs`、`Messages/ImageMessage.cs` 提供；`CommandBase.SendMessage(context, segments)` 在只有一张图片时把文本作为 `content` 与 `attachment` 一起交给 `SendMessageAsync`，因此图片和说明是**同一条消息**；多图时按顺序拆分。
+- 发送片段由 `Messages/TextMessage.cs`、`Messages/ImageMessage.cs` 提供，按顺序装进 `Messages/MessageChain.cs`；`CommandBase.SendMessage(context, chain)` 在只有一张图片时把链里所有文本合并成 `content`、图片作为 `attachment` 一起交给 `SendMessageAsync`（`[文字, 图片, 文字]` 就是一条带说明的图片消息），多图时才按顺序拆分。
 - 官方 media 消息的 `content` 和 `attachment` 可以同时传，单图不要拆成两条发；多图仍受“一条消息一个附件”的限制。
 - `CommandBase` 内部把图片 base64 转成 `FileAttachment(ReadOnlyMemory<byte>)`，由 QQBot.Net 上传富媒体后发送。
 - 头像 URL 由 `ImageGeneratorFunctions` 拼成 `https://q.qlogo.cn/qqapp/{AppId}/{openId}/{size}`；openId 传 `SceneUserId`（群内 `member_openid` / 单聊 `user_openid`）。
@@ -366,7 +366,8 @@ dotnet run --project Sapphire/Sapphire.csproj
 - WCK 服务按 `openid` 索引 session（不是 QQ 号）；Sapphire 侧 `SessionLoginRequestDto` / `WckDataManager` 已同步，改动时两边一起改。
 - QQBot.Net 0.2.0 不解析 `username` / `member_nickname` / `member_role` / `union_openid`；本项目依赖 `third_party/QQBot.Net` fork 的 `SocketMessage.Author*` 属性。升级 SDK 时先同步 fork，不要直接换回 NuGet 包。
 - `MaiAliases.CreatorUserId` 在新库是 `text`；旧别名 creator 已置 `NULL`，只有 bot 管理员能删除旧别名。
-- 单图 + 文本会作为一条 media 消息发送（`content` + `attachment`）；多图时才会按顺序拆分。不要把单图场景写成两次 `SendMessage`/`SendImage`，会破坏图文同条。
+- 单图 + 文本会作为一条 media 消息发送（`content` + `attachment`）；多图时才会按顺序拆分。不要把单图场景写成两次 `SendMessage`，会破坏图文同条。
+- `SendMessage(context, [...])` 的第二个参数只能是 `MessageChain`：不要同时提供 `params MessageSegment[]` 之类的重载，集合表达式会因目标类型不唯一而报歧义。
 - 群聊 `migrate` 的 `--group` 必填，值是**旧库 QQ 群号**；不要传新 `group_openid`。私聊 `migrate` 不需要也不使用 `--group`，只迁移成绩和私聊设置。
 - 同一个 QQ 对多个旧群分别迁移会重复覆盖成绩、把别名合并到当前群。
 - 迁移服务必须先在主 bot 的 `[Migration] Enabled = true` 且 `Sapphire.Migration` 已连接；否则指令只会回“迁移服务未启用/未连接”。

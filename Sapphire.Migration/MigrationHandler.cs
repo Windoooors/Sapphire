@@ -80,10 +80,10 @@ public static class MigrationHandler
             return 0;
 
         await using var write = new NpgsqlCommand("""
-            INSERT INTO "MaiUserPlayRecords" ("UserId", "Data")
-            VALUES (@uid, @data)
-            ON CONFLICT ("UserId") DO UPDATE SET "Data" = EXCLUDED."Data"
-            """, target, transaction);
+                                                  INSERT INTO "MaiUserPlayRecords" ("UserId", "Data")
+                                                  VALUES (@uid, @data)
+                                                  ON CONFLICT ("UserId") DO UPDATE SET "Data" = EXCLUDED."Data"
+                                                  """, target, transaction);
 
         write.Parameters.AddWithValue("uid", request.CanonicalUserId);
         write.Parameters.AddWithValue("data", data);
@@ -97,7 +97,8 @@ public static class MigrationHandler
         NpgsqlTransaction transaction, MigrationRequest request, long legacyGroupId,
         CancellationToken cancellationToken)
     {
-        const string query = "SELECT \"Alias\" FROM \"GroupMemberAliases\" WHERE \"UserId\" = @qq AND \"GroupId\" = @group";
+        const string query =
+            "SELECT \"Alias\" FROM \"GroupMemberAliases\" WHERE \"UserId\" = @qq AND \"GroupId\" = @group";
 
         await using var read = new NpgsqlCommand(query, legacy);
 
@@ -117,13 +118,13 @@ public static class MigrationHandler
             return 0;
 
         await using var write = new NpgsqlCommand("""
-            INSERT INTO "GroupMemberAliases" ("Alias", "UserId", "SceneUserId", "GroupId")
-            SELECT @alias, @uid, @scene, @chat
-            WHERE NOT EXISTS (
-                SELECT 1 FROM "GroupMemberAliases"
-                WHERE "GroupId" = @chat AND "UserId" = @uid AND "Alias" = @alias
-            )
-            """, target, transaction);
+                                                  INSERT INTO "GroupMemberAliases" ("Alias", "UserId", "SceneUserId", "GroupId")
+                                                  SELECT @alias, @uid, @scene, @chat
+                                                  WHERE NOT EXISTS (
+                                                      SELECT 1 FROM "GroupMemberAliases"
+                                                      WHERE "GroupId" = @chat AND "UserId" = @uid AND "Alias" = @alias
+                                                  )
+                                                  """, target, transaction);
 
         write.Parameters.Add("alias", NpgsqlDbType.Text);
         write.Parameters.AddWithValue("uid", request.CanonicalUserId);
@@ -145,13 +146,13 @@ public static class MigrationHandler
         MigrationRequest request, CancellationToken cancellationToken)
     {
         await using var write = new NpgsqlCommand("""
-            INSERT INTO "GroupMembers" ("GroupId", "UserId", "SceneUserId")
-            SELECT @chat, @uid, @scene
-            WHERE NOT EXISTS (
-                SELECT 1 FROM "GroupMembers"
-                WHERE "GroupId" = @chat AND "UserId" = @uid
-            )
-            """, target, transaction);
+                                                  INSERT INTO "GroupMembers" ("GroupId", "UserId", "SceneUserId")
+                                                  SELECT @chat, @uid, @scene
+                                                  WHERE NOT EXISTS (
+                                                      SELECT 1 FROM "GroupMembers"
+                                                      WHERE "GroupId" = @chat AND "UserId" = @uid
+                                                  )
+                                                  """, target, transaction);
 
         write.Parameters.AddWithValue("chat", request.ChatId);
         write.Parameters.AddWithValue("uid", request.CanonicalUserId);
@@ -180,10 +181,10 @@ public static class MigrationHandler
         string targetChatId, CancellationToken cancellationToken)
     {
         await using var read = new NpgsqlCommand("""
-            SELECT "Identifier", "Value"
-            FROM "SettingsItems"
-            WHERE "IsGroup" = @isGroup AND "ChatId" = @chat
-            """, legacy);
+                                                 SELECT "Identifier", "Value"
+                                                 FROM "SettingsItems"
+                                                 WHERE "IsGroup" = @isGroup AND "ChatId" = @chat
+                                                 """, legacy);
 
         read.Parameters.AddWithValue("isGroup", isGroup);
         read.Parameters.AddWithValue("chat", legacyChatId);
@@ -201,11 +202,11 @@ public static class MigrationHandler
             return 0;
 
         await using var write = new NpgsqlCommand("""
-            INSERT INTO "SettingsItems" ("IsGroup", "ChatId", "Identifier", "Value")
-            VALUES (@isGroup, @chat, @identifier, @value)
-            ON CONFLICT ("IsGroup", "ChatId", "Identifier")
-            DO UPDATE SET "Value" = EXCLUDED."Value"
-            """, target, transaction);
+                                                  INSERT INTO "SettingsItems" ("IsGroup", "ChatId", "Identifier", "Value")
+                                                  VALUES (@isGroup, @chat, @identifier, @value)
+                                                  ON CONFLICT ("IsGroup", "ChatId", "Identifier")
+                                                  DO UPDATE SET "Value" = EXCLUDED."Value"
+                                                  """, target, transaction);
 
         write.Parameters.AddWithValue("isGroup", isGroup);
         write.Parameters.AddWithValue("chat", targetChatId);

@@ -1,6 +1,5 @@
 ﻿using System.Collections.Concurrent;
 using QQBot;
-using QQBot.Logging;
 using QQBot.Net.Rest;
 using QQBot.Net.WebSockets;
 using QQBot.WebSocket;
@@ -16,11 +15,9 @@ public static class BotClient
     private static readonly ConcurrentDictionary<string, byte> RecentMessageIds = new();
     private static readonly ConcurrentQueue<string> RecentMessageIdQueue = new();
 
-    private static QQBotSocketClient? _client;
+    public static QQBotSocketClient? Client { get; private set; }
 
-    public static QQBotSocketClient? Client => _client;
-
-    public static string? CurrentUserId => _client?.CurrentUser?.Id.ToString();
+    public static string? CurrentUserId => Client?.CurrentUser?.Id.ToString();
 
     public static async Task RunAsync(Action<MessageContext> onMessage)
     {
@@ -38,11 +35,11 @@ public static class BotClient
             MessageCacheSize = 0,
             LogLevel = LogSeverity.Info,
             // 本地调试时通过 HTTPS_PROXY / ALL_PROXY 指定的 SOCKS 代理访问腾讯接口。
-            RestClientProvider = DefaultRestClientProvider.Create(useProxy: true),
+            RestClientProvider = DefaultRestClientProvider.Create(true),
             WebSocketProvider = DefaultWebSocketProvider.Create(HttpClient.DefaultProxy)
         });
 
-        _client = client;
+        Client = client;
 
         client.Log += LogAsync;
         client.Disconnected += exception =>
@@ -70,12 +67,12 @@ public static class BotClient
 
     public static async Task StopAsync()
     {
-        if (_client == null)
+        if (Client == null)
             return;
 
         try
         {
-            await _client.StopAsync();
+            await Client.StopAsync();
         }
         catch (Exception ex)
         {
@@ -84,7 +81,7 @@ public static class BotClient
 
         try
         {
-            await _client.LogoutAsync();
+            await Client.LogoutAsync();
         }
         catch (Exception ex)
         {

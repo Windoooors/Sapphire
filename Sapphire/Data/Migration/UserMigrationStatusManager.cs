@@ -29,21 +29,21 @@ public static class UserMigrationStatusManager
             await connection.OpenAsync();
 
             await using var command = new NpgsqlCommand("""
-                CREATE TABLE IF NOT EXISTS "UserMigrationStatus" (
-                    "UserId" character varying(64) NOT NULL,
-                    "QqNumber" bigint NOT NULL,
-                    "MigratedAt" timestamp with time zone NOT NULL,
-                    CONSTRAINT "PK_UserMigrationStatus" PRIMARY KEY ("UserId")
-                );
+                                                        CREATE TABLE IF NOT EXISTS "UserMigrationStatus" (
+                                                            "UserId" character varying(64) NOT NULL,
+                                                            "QqNumber" bigint NOT NULL,
+                                                            "MigratedAt" timestamp with time zone NOT NULL,
+                                                            CONSTRAINT "PK_UserMigrationStatus" PRIMARY KEY ("UserId")
+                                                        );
 
-                INSERT INTO "UserMigrationStatus" ("UserId", "QqNumber", "MigratedAt")
-                SELECT DISTINCT "UserId", 0, now() FROM "MaiUserPlayRecords"
-                ON CONFLICT ("UserId") DO NOTHING;
+                                                        INSERT INTO "UserMigrationStatus" ("UserId", "QqNumber", "MigratedAt")
+                                                        SELECT DISTINCT "UserId", 0, now() FROM "MaiUserPlayRecords"
+                                                        ON CONFLICT ("UserId") DO NOTHING;
 
-                INSERT INTO "UserMigrationStatus" ("UserId", "QqNumber", "MigratedAt")
-                SELECT DISTINCT "UserId", 0, now() FROM "GroupMemberAliases"
-                ON CONFLICT ("UserId") DO NOTHING;
-                """, connection);
+                                                        INSERT INTO "UserMigrationStatus" ("UserId", "QqNumber", "MigratedAt")
+                                                        SELECT DISTINCT "UserId", 0, now() FROM "GroupMemberAliases"
+                                                        ON CONFLICT ("UserId") DO NOTHING;
+                                                        """, connection);
 
             await command.ExecuteNonQueryAsync();
             _initialized = true;
@@ -81,11 +81,11 @@ public static class UserMigrationStatusManager
         await connection.OpenAsync();
 
         await using var command = new NpgsqlCommand("""
-            INSERT INTO "UserMigrationStatus" ("UserId", "QqNumber", "MigratedAt")
-            VALUES (@userId, @qqNumber, now())
-            ON CONFLICT ("UserId") DO UPDATE
-            SET "QqNumber" = EXCLUDED."QqNumber", "MigratedAt" = EXCLUDED."MigratedAt"
-            """, connection);
+                                                    INSERT INTO "UserMigrationStatus" ("UserId", "QqNumber", "MigratedAt")
+                                                    VALUES (@userId, @qqNumber, now())
+                                                    ON CONFLICT ("UserId") DO UPDATE
+                                                    SET "QqNumber" = EXCLUDED."QqNumber", "MigratedAt" = EXCLUDED."MigratedAt"
+                                                    """, connection);
 
         command.Parameters.AddWithValue("userId", userId);
         command.Parameters.AddWithValue("qqNumber", qqNumber);

@@ -11,7 +11,7 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <ProjectReference Include="$(QQBotNetRoot)\src\QQBot.Net\QQBot.Net.csproj" />
+        <ProjectReference Include="$(QQBotNetRoot)\src\QQBot.Net\QQBot.Net.csproj"/>
     </ItemGroup>
 
     <ItemGroup>
@@ -21,7 +21,6 @@
     </ItemGroup>
 
     <ItemGroup>
-        <PackageReference Include="MeiliSearch" Version="0.20.0"/>
         <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.12">
             <PrivateAssets>all</PrivateAssets>
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
@@ -33,8 +32,8 @@
         <PackageReference Include="Serilog.Sinks.File" Version="8.0.0-nblumhardt-02322"/>
         <PackageReference Include="SixLabors.ImageSharp" Version="4.1.3"/>
         <PackageReference Include="SixLabors.ImageSharp.Drawing" Version="3.1.3"/>
-        <PackageReference Include="System.Formats.Cbor" Version="11.0.0" />
-        <PackageReference Include="System.Text.Json" Version="11.0.0" />
+        <PackageReference Include="System.Formats.Cbor" Version="11.0.0"/>
+        <PackageReference Include="System.Text.Json" Version="11.0.0"/>
         <PackageReference Include="Tomlyn" Version="2.10.1"/>
     </ItemGroup>
 

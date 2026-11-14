@@ -10,6 +10,8 @@ public class GroupMemberDataManager
 {
     public static GroupMemberDataManager? Instance;
 
+    private readonly Lock _reloadLock = new();
+
     public GroupMemberDataManager()
     {
         Instance = this;
@@ -34,7 +36,25 @@ public class GroupMemberDataManager
         BakeIndexingData();
     }
 
-    private readonly Lock _reloadLock = new();
+    public Dictionary<string, (string groupId, string userId)[]> AliasToUserIds { get; } = [];
+    public Dictionary<(string groupId, string userId), string[]> AliasSearchKeys { get; } = [];
+    public Dictionary<int, GroupMemberAliasDto> AliasIdToAlias { get; } = [];
+    public (string groupId, string userId)[] AliasedUserIds { get; private set; } = [];
+    public Dictionary<(string groupId, string userId), GroupMemberAliasDto[]> UserIdToAliases { get; } = [];
+
+    public List<GroupMemberAliasDto> AliasList { get; }
+
+    public Dictionary<string, HashSet<string>> UserPool { get; } = [];
+
+    /// <summary>
+    ///     (群 ID, canonical 用户 ID) → 当前群内的 member_openid。
+    /// </summary>
+    public Dictionary<(string groupId, string userId), string> SceneUserIds { get; } = [];
+
+    /// <summary>
+    ///     (群 ID, canonical 用户 ID) → 展示名。来自消息事件，进程重启后需要重新积累。
+    /// </summary>
+    public Dictionary<(string groupId, string userId), string> DisplayNames { get; } = [];
 
     /// <summary>
     ///     迁移服务直接写库后，重新读取别名/成员并重建内存索引。
@@ -68,26 +88,6 @@ public class GroupMemberDataManager
             BakeIndexingData();
         }
     }
-
-    public Dictionary<string, (string groupId, string userId)[]> AliasToUserIds { get; } = [];
-    public Dictionary<(string groupId, string userId), string[]> AliasSearchKeys { get; } = [];
-    public Dictionary<int, GroupMemberAliasDto> AliasIdToAlias { get; } = [];
-    public (string groupId, string userId)[] AliasedUserIds { get; private set; } = [];
-    public Dictionary<(string groupId, string userId), GroupMemberAliasDto[]> UserIdToAliases { get; } = [];
-
-    public List<GroupMemberAliasDto> AliasList { get; }
-
-    public Dictionary<string, HashSet<string>> UserPool { get; } = [];
-
-    /// <summary>
-    ///     (群 ID, canonical 用户 ID) → 当前群内的 member_openid。
-    /// </summary>
-    public Dictionary<(string groupId, string userId), string> SceneUserIds { get; } = [];
-
-    /// <summary>
-    ///     (群 ID, canonical 用户 ID) → 展示名。来自消息事件，进程重启后需要重新积累。
-    /// </summary>
-    public Dictionary<(string groupId, string userId), string> DisplayNames { get; } = [];
 
     public string? GetSceneUserId(string groupId, string userId)
     {

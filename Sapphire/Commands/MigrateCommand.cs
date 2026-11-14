@@ -42,8 +42,6 @@ public class MigrateCommand : CommandBase
 
         var environment = SpEnvironmentHandler.Environment.Migration;
 
-        // 私聊只影响当前 canonical 用户的成绩/私聊设置，允许所有用户自行迁移；
-        // 群聊会导入群友别名/群成员/群设置，仍要求管理员权限。
         if (context.IsGroup &&
             !environment.AllowAllUsers &&
             !IsBotAdministrator(context) &&

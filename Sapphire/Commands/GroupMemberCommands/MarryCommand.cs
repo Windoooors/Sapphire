@@ -1,4 +1,4 @@
-﻿using Sapphire.Data.GroupMember;
+using Sapphire.Data.GroupMember;
 using Sapphire.ImageGeneration;
 using Sapphire.Messages;
 
@@ -63,9 +63,6 @@ public class MarryCommand : GroupMemberCommandBase
             await SendUnknownError(context);
             return;
         }
-
-        if (!await EnsureMigratedAsync(context))
-            return;
 
         var groupId = context.ChatId;
         var userId = context.UserId;
@@ -258,11 +255,7 @@ public class MarryCommand : GroupMemberCommandBase
 
         var avatarBase64 = await ImageGeneratorFunctions.GetUserAvatarBase64Async(sceneUserId, 640);
 
-        await SendMessage(context,
-        [
-            new ImageMessage(avatarBase64),
-            new TextMessage($"您今天的对象是 {nickname} ({userId})！")
-        ]);
+        await SendMessage(context, [new ImageMessage(avatarBase64), $"您今天的对象是 {nickname} ({userId})！"]);
 
         return true;
     }

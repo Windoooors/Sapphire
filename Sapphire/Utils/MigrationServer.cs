@@ -242,20 +242,6 @@ public static class MigrationServer
 
         public WebSocket Socket { get; } = socket;
 
-        public async Task SendAsync(byte[] payload)
-        {
-            await _sendLock.WaitAsync();
-
-            try
-            {
-                await Socket.SendAsync(payload, WebSocketMessageType.Text, true, CancellationToken.None);
-            }
-            finally
-            {
-                _sendLock.Release();
-            }
-        }
-
         public void Dispose()
         {
             try
@@ -270,6 +256,20 @@ public static class MigrationServer
 
             Socket.Dispose();
             _sendLock.Dispose();
+        }
+
+        public async Task SendAsync(byte[] payload)
+        {
+            await _sendLock.WaitAsync();
+
+            try
+            {
+                await Socket.SendAsync(payload, WebSocketMessageType.Text, true, CancellationToken.None);
+            }
+            finally
+            {
+                _sendLock.Release();
+            }
         }
     }
 }

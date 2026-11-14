@@ -93,7 +93,8 @@ public static class InfoImageGenerator
         });
     }
 
-    public static async Task<string> Generate(MaiSongDto song, MaiPlayRecord[]? records, string? userId, string? userName,
+    public static async Task<string> Generate(MaiSongDto song, MaiPlayRecord[]? records, string? userId,
+        string? userName,
         bool? useJp)
     {
         using var backgroundImage = new Image<Rgba32>(1440, 2180, ColorPalette.BackgroundColor.ToPixel<Rgba32>());

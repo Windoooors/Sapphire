@@ -1,4 +1,4 @@
-﻿using System.Text;
+using System.Text;
 using Sapphire.Data.GroupMember;
 using Sapphire.Data.Mai;
 using Sapphire.Data.Mai.Dtos;
@@ -257,11 +257,9 @@ public class BestListCommand : MaiCommandBase
             await ImageGenerationHandler.Instance.AddTask(
                 BestListImageGenerator.Generate(dataObject, useJpLevel, useFit));
         var generationTime = DateTime.UtcNow - generationStartTime;
-        await SendMessage(context,
-        [
+        await SendMessage(context, [
             new ImageMessage(imageResult),
-            new TextMessage(
-                $"查询用时 {queryTime.TotalMilliseconds}ms，图片生成用时 {generationTime.TotalMilliseconds}ms")
+            $"查询用时 {queryTime.TotalMilliseconds}ms，图片生成用时 {generationTime.TotalMilliseconds}ms"
         ]);
     }
 

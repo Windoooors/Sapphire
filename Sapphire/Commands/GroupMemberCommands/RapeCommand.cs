@@ -1,4 +1,4 @@
-﻿using Sapphire.Data.GroupMember;
+using Sapphire.Data.GroupMember;
 using Sapphire.Environments;
 using Sapphire.ImageGeneration;
 using Sapphire.Messages;
@@ -22,9 +22,6 @@ public class RapeCommand : GroupMemberCommandBase
             await SendWrongContextMessage(context);
             return;
         }
-
-        if (!await EnsureMigratedAsync(context))
-            return;
 
         var targetString = commandContext.Argument;
 
@@ -99,9 +96,6 @@ public class RapeCommand : GroupMemberCommandBase
             return;
         }
 
-        if (!await EnsureMigratedAsync(context))
-            return;
-
         if (!GroupMemberDataManager.Instance.UserPool.TryGetValue(context.ChatId, out var group))
         {
             await GroupMemberDataManager.Instance.AddUserToPool(context.UserId, context.SceneUserId,
@@ -157,11 +151,7 @@ public class RapeCommand : GroupMemberCommandBase
 
         var avatarBase64 = await ImageGeneratorFunctions.GetUserAvatarBase64Async(sceneUserId, 640);
 
-        await SendMessage(context,
-        [
-            new ImageMessage(avatarBase64),
-            new TextMessage($"您把群友 {nickname} ({userId}) 配了")
-        ]);
+        await SendMessage(context, [new ImageMessage(avatarBase64), $"您把群友 {nickname} ({userId}) 配了"]);
 
         return true;
     }
