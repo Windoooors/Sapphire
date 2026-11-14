@@ -154,7 +154,7 @@ Sapphire.Migration/             # 旧库迁移工具（独立进程，Npgsql + W
 - 处理器里用**长名**查询：`commandContext.GetFlag("--bpm")`、`commandContext.HasFlag("--divingfish")`。`FlagSpec.Name` 就是 `LongName`，所以**一定要设置 `LongName`**，否则会存成空键。
 - 没有 flag 且没有位置参数时走 `Process`，否则走 `ProcessWithArguments`。`Argument` 是剩余 token 用空格拼接的字符串，可能为 `null`。
 - 输出统一用 `SendMessage(context, "text")`、`SendMessage(context, ["text"])`，或图文混排的 `SendMessage(context, [new TextMessage("..."), new ImageMessage(base64)])`；`SendImage` 仍保留为单图快捷方式。两者都是**被动回复**（`passiveSource: context.Message`），不再使用引用消息。
-- 官方被动回复限制：群聊 5 分钟 / 每条消息 5 次，单聊 60 分钟 / 4 次。不要把文本和图片拼在一条消息里（官方 `msg_type` 只能选一种）；图片和文本会拆成两条。
+- 官方被动回复限制：群聊 5 分钟 / 每条消息 5 次，单聊 60 分钟 / 4 次。官方 media 消息支持 `content` + `attachment` 一起传；单图时文本会和图片合并成一条消息，多图时才按顺序拆分。
 - `CommandBase` 提供 `SendArgumentError` / `SendUnknownError` / `SendUnpermittedError`，mai 域另有 `SendUnauthorizedError` / `SendNotLoggedInError`。
 - 权限：`IsBotAdministrator(context)` 比对 `Sapphire.AdministratorOpenIds`；`IsGroupAdministrator(context)` 优先用事件里的 `MemberRole`（`owner`/`admin`），否则回退到 bot 管理员配置。
 - 确认流程：`ConfirmationCommand` 按 `(ChatId, TargetUserId)` 记录待确认项，目标用户直接回复「确定」/「取消」即可，**不需要引用原消息**；10 分钟过期。
@@ -300,7 +300,8 @@ migrate <你的QQ号>
 - 封面：`Resources/Covers/<sapphireId>.png`、`Resources/CoversHd/<sapphireId>.png`，缺失时回退到 `0.png`。`PreloadCoverImages = true` 时启动即把 `Resources/Covers` 全部载入内存（`MaiImageGeneratorFunctions.LoadImages`）。
 - 这些 `Resources/` 运行时资源**不在 git 中**，需要本地或部署环境自行提供；`dotnet build` 不会自动复制。
 - 出图统一走 `ImageGenerationHandler.Instance.AddTask(...)`，由信号量按 `MaxParallelGenerationTaskCount` 限流；返回 base64 JPEG（质量 50）。
-- 发送片段由 `Messages/TextMessage.cs`、`Messages/ImageMessage.cs` 提供；`CommandBase.SendMessage(context, segments)` 会按顺序合并连续文本、逐张发送图片。官方 API 的 `msg_type` 不能同时携带文本和富媒体，所以**调用层是图文混排，协议层会拆成文本/图片多条消息**；注意被动回复次数。
+- 发送片段由 `Messages/TextMessage.cs`、`Messages/ImageMessage.cs` 提供；`CommandBase.SendMessage(context, segments)` 在只有一张图片时把文本作为 `content` 与 `attachment` 一起交给 `SendMessageAsync`，因此图片和说明是**同一条消息**；多图时按顺序拆分。
+- 官方 media 消息的 `content` 和 `attachment` 可以同时传，单图不要拆成两条发；多图仍受“一条消息一个附件”的限制。
 - `CommandBase` 内部把图片 base64 转成 `FileAttachment(ReadOnlyMemory<byte>)`，由 QQBot.Net 上传富媒体后发送。
 - 头像 URL 由 `ImageGeneratorFunctions` 拼成 `https://q.qlogo.cn/qqapp/{AppId}/{openId}/{size}`；openId 传 `SceneUserId`（群内 `member_openid` / 单聊 `user_openid`）。
 - ImageSharp 对象实现 `IDisposable`，生成器里注意 `using`；`PingCommand` 会报告未释放的 Image 数量，可用于排查泄漏。
@@ -352,7 +353,7 @@ dotnet run --project Sapphire/Sapphire.csproj
 ## 易错点
 
 - **群消息只有 @ 机器人时才会收到**，且 content 已去掉 @ 前缀；不要按 NapCat 的「普通消息 + 前缀」习惯测试。
-- 被动回复：群 5 分钟/5 次，单聊 60 分钟/4 次；图片和文本分两条发送，连续多条错误提示可能耗尽额度。
+- 被动回复：群 5 分钟/5 次，单聊 60 分钟/4 次；单图 + 文本可合并成一条 media 消息，多图才会拆分；连续多条错误提示可能耗尽额度。
 - `CommandBase.Receive` 的分支依据是「有没有 flag / 有没有位置参数」；只重写 `Process` 会导致带参数时落到基类默认回复 `dame`。
 - `CommandHeads` 与 `DirectCommandHeads` 是两套；只配一个时另一种调用形式不可用。
 - 前缀匹配区分大小写，lite 匹配不区分；`s` 与 `S` 不等价。
@@ -365,7 +366,7 @@ dotnet run --project Sapphire/Sapphire.csproj
 - WCK 服务按 `openid` 索引 session（不是 QQ 号）；Sapphire 侧 `SessionLoginRequestDto` / `WckDataManager` 已同步，改动时两边一起改。
 - QQBot.Net 0.2.0 不解析 `username` / `member_nickname` / `member_role` / `union_openid`；本项目依赖 `third_party/QQBot.Net` fork 的 `SocketMessage.Author*` 属性。升级 SDK 时先同步 fork，不要直接换回 NuGet 包。
 - `MaiAliases.CreatorUserId` 在新库是 `text`；旧别名 creator 已置 `NULL`，只有 bot 管理员能删除旧别名。
-- 图文混排只是调用层抽象：官方 API 会拆成文本/图片多条消息，连续文本合并、图片逐张发送；不要把“一条 `SendMessage`”误认为协议层只有一条消息。
+- 单图 + 文本会作为一条 media 消息发送（`content` + `attachment`）；多图时才会按顺序拆分。不要把单图场景写成两次 `SendMessage`/`SendImage`，会破坏图文同条。
 - 群聊 `migrate` 的 `--group` 必填，值是**旧库 QQ 群号**；不要传新 `group_openid`。私聊 `migrate` 不需要也不使用 `--group`，只迁移成绩和私聊设置。
 - 同一个 QQ 对多个旧群分别迁移会重复覆盖成绩、把别名合并到当前群。
 - 迁移服务必须先在主 bot 的 `[Migration] Enabled = true` 且 `Sapphire.Migration` 已连接；否则指令只会回“迁移服务未启用/未连接”。

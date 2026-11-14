@@ -145,6 +145,29 @@ public abstract class CommandBase
 
     private static async Task SendSegmentsAsync(MessageContext context, MessageSegment[] segments)
     {
+        var images = segments.OfType<ImageMessage>()
+            .Where(image => !string.IsNullOrWhiteSpace(image.Base64))
+            .ToArray();
+
+        var text = string.Concat(segments.OfType<TextMessage>().Select(message => message.Text));
+
+        if (images.Length == 0)
+        {
+            if (!string.IsNullOrEmpty(text))
+                await SendTextAsync(context, text);
+
+            return;
+        }
+
+        // 官方 API 的 media 消息可以同时携带 content 和 attachment；单图时把文本一起带上，
+        // 这样 Info/B50/娶群友等“图片 + 说明”就是一条消息，而不是两条。
+        if (images.Length == 1)
+        {
+            await SendMediaAsync(context, text, images[0]);
+            return;
+        }
+
+        // 多图时按顺序处理：每张图片带上前面的文本，最后剩余的文本单独发送。
         var textBuffer = new StringBuilder();
 
         foreach (var segment in segments)
@@ -155,14 +178,9 @@ public abstract class CommandBase
                     textBuffer.Append(textMessage.Text);
                     break;
 
-                case ImageMessage imageMessage:
-                    if (textBuffer.Length > 0)
-                    {
-                        await SendTextAsync(context, textBuffer.ToString());
-                        textBuffer.Clear();
-                    }
-
-                    await SendImageInternalAsync(context, imageMessage);
+                case ImageMessage imageMessage when !string.IsNullOrWhiteSpace(imageMessage.Base64):
+                    await SendMediaAsync(context, textBuffer.ToString(), imageMessage);
+                    textBuffer.Clear();
                     break;
             }
         }
@@ -183,19 +201,20 @@ public abstract class CommandBase
         }
     }
 
-    private static async Task SendImageInternalAsync(MessageContext context, ImageMessage image)
+    private static async Task SendMediaAsync(MessageContext context, string? content, ImageMessage image)
     {
-        if (string.IsNullOrWhiteSpace(image.Base64))
-            return;
-
         try
         {
             using var attachment = new FileAttachment(Convert.FromBase64String(image.Base64), image.Filename);
-            await context.Channel.SendMessageAsync(attachment: attachment, passiveSource: context.Message);
+
+            await context.Channel.SendMessageAsync(
+                content: string.IsNullOrWhiteSpace(content) ? null : content,
+                attachment: attachment,
+                passiveSource: context.Message);
         }
         catch (Exception ex)
         {
-            Log.Error(ex, "Error occurred while sending an image to {ChatId}", context.ChatId);
+            Log.Error(ex, "Error occurred while sending a message with an image to {ChatId}", context.ChatId);
         }
     }
 
