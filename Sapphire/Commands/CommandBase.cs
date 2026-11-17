@@ -53,8 +53,14 @@ public abstract class CommandBase
         foreach (var groupCommandBase in SubCommands) groupCommandBase.StartInitialize();
     }
 
-    protected virtual async Task ProcessDirectly(MessageContext context)
+    protected async Task SendHelp(MessageContext context)
     {
+        await SendMessage(context, "请访问 https://setchin.com/sapphire/docs 以查看帮助");
+    }
+
+    protected virtual Task ProcessDirectly(MessageContext context)
+    {
+        return Task.CompletedTask;
     }
 
     public async Task ReceiveDirectly(MessageContext context)
@@ -77,12 +83,12 @@ public abstract class CommandBase
 
     protected virtual async Task Process(MessageContext context)
     {
-        await SendMessage(context, "dame");
+        await SendHelp(context);
     }
 
     protected virtual async Task ProcessWithArguments(CommandContext commandContext, MessageContext context)
     {
-        await SendMessage(context, "dame");
+        await SendHelp(context);
     }
 
     public static async Task SendUnknownError(MessageContext context)

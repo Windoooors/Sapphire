@@ -1,4 +1,4 @@
-# AGENTS.md
+﻿# AGENTS.md
 
 面向在本仓库中工作的 AI 编码代理的说明。开始改动前请先读完本文件；若本文件与代码不一致，以代码为准，并顺手修正本文件。
 
@@ -58,7 +58,7 @@ Sapphire/
 │   ├── Mai/{Database,Dtos}     # 曲目元数据 + 用户成绩（bytea，key 为 canonical openid）
 │   ├── DivingFishMai/          # DivingFish OAuth / 上传 / 拉取
 │   ├── Wck/                    # 华立 WCK（成绩同步，session 按 openid 索引）
-│   ├── GroupMember/            # 群友别名、婚姻（别名按群存 canonical + scene openid）
+│   ├── GroupMember/            # 群友别名、KnownNames / DisplayNames、婚姻（别名按群存 canonical + scene openid）
 │   ├── Settings/               # 群/单聊设置
 │   └── Chuni/
 ├── Environments/               # config.toml 模型与单例读取
@@ -228,7 +228,7 @@ private static readonly CommandBase[] GroupCommands =
 | DbContext | 位置 | 迁移目录 | 说明 |
 | --- | --- | --- | --- |
 | `SettingsMetadataContext` | `Data/Settings/Database` | `Migrations/` | 群/单聊设置项，`ChatId` 为 openid 字符串 |
-| `GroupMemberDataContext` | `Data/GroupMember/Database` | `Migrations/GroupMemberData/` | 群友、别名、婚姻；字符串 ID，别名同时存 canonical/scene |
+| `GroupMemberDataContext` | `Data/GroupMember/Database` | `Migrations/GroupMemberData/` | 群友、别名、婚姻、`KnownNames` / `DisplayNames`；字符串 ID，别名同时存 canonical/scene |
 | `MaiMetadataContext` | `Data/Mai/Database` | 无 | 曲目/谱面/别名元数据，仓库外维护 |
 | `MaiUserDataContext` | `Data/Mai/Database` | `Migrations/MaiUserData/` | 用户成绩 blob，`UserId` 为 canonical openid |
 | `ChuniMetadataContext` | `Data/Chuni/Database` | 无 | 中二曲目元数据，仓库外维护 |
@@ -236,6 +236,8 @@ private static readonly CommandBase[] GroupCommands =
 - 启动时各 Manager 构造函数调用 `Database.Migrate()`，正常部署不需要手工建表。
 - `MaiMetadataContext` 与 `ChuniMetadataContext` 在仓库内**没有迁移**：曲目元数据由外部导入，`Migrate()` 不会创建 `MaiSongs` 等业务表。改这两个上下文前先确认真实库结构由谁维护，不要用迁移去「补建表」。
 - 用户 ID 统一 `varchar(64)`；`GroupMemberAliases` 与 `GroupMembers` 额外有 `SceneUserId`。`MaiAliases.CreatorUserId` 是 `text`（可空），旧别名数据的 creator 已置 `NULL`。
+- `KnownNames`（跨群，`UserId` 主键）和 `DisplayNames`（按群，`(GroupId, UserId)` 复合主键）是 `GroupMemberDataContext` 里的 EF 实体，分别对应 `KnownNameDto` / `DisplayNameDto`；由迁移 `AddKnownNamesAndDisplayNames`（`Migrations/GroupMemberData/`）建表，启动时 `Database.Migrate()` 自动应用。
+- `GroupMemberDataManager` 启动/Reload 时用 EF 查询加载两张表；`RememberName` / `UpdateUser` 名字变化时异步 upsert，不手写 `CREATE TABLE`。
 - 新增迁移（在仓库根执行；本机已全局安装 `dotnet-ef` 10.0.12，缺失时先 `dotnet tool install --global dotnet-ef`）：
 
   ```bash
@@ -361,7 +363,12 @@ dotnet run --project Sapphire/Sapphire.csproj
 - `SettingsDataManager` 构造时把整张设置表读进内存，`SetValue` 会同时更新内存和数据库；绕过它直接改库不会即时生效。
 - `MaiDataManager` 的索引是常驻内存的；曲目或别名变化后需要重新烘焙（`BakeIndexingData`）或重启进程。
 - `GroupMemberDataManager.GetMarriages()` 会先删除当天之前的记录，依赖 `UtcDayTickTime`；改动婚姻逻辑时注意这个副作用。
-- `GroupMemberDataManager.SceneUserIds` / `DisplayNames` 是进程内缓存，重启后需要用户再次发言才会重新积累；群成员列表接口目前是内邀（11253），不要假设能随时查任意成员。
+- `GroupMemberDataManager.SceneUserIds` 仍是进程内缓存，重启后需要用户再次发言才会重新积累；`KnownNames`（跨群）和 `DisplayNames`（按群）都已持久化，重启后仍可用。
+- `DisplayNames` 按 `(GroupId, UserId)` 存，`KnownNames` 按 `UserId` 存；群昵称优先读 `DisplayNames`，没有再回退 `KnownNames`，不要把两者混用。
+- 群成员查询接口目前可能是内邀（11253）或不可用：`IsUserInGroupAsync` 返回 `null` 时表示“查不了”，绝不能据此删用户；只有 `GetMemberAsync` 明确 404 才 `RemoveUserFromPool`。
+- `娶群友` / `透群友` 拿不到名字时不再删除用户：先查群成员；查不到（异常/11253/没有 `SceneUserId`）就保留并用 `userId` 兜底显示，只有确认不在群才移除。
+- `KnownNames` / `DisplayNames` 都是 EF 实体，不要再用 `KnownNameStore` / `DisplayNameStore` 这类手写建表；加字段/改长度必须生成 EF 迁移。
+- 名字持久化是 fire-and-forget 写入，短时间内连续改名可能乱序；展示名不是关键数据，不要把名字当唯一身份。
 - 官方 `union_openid` 可能为空；`MessageContext.UserId` 会退化为 scene ID，跨群成绩会分裂。换 bot 后先用 `whoami` 确认。
 - WCK 服务按 `openid` 索引 session（不是 QQ 号）；Sapphire 侧 `SessionLoginRequestDto` / `WckDataManager` 已同步，改动时两边一起改。
 - QQBot.Net 0.2.0 不解析 `username` / `member_nickname` / `member_role` / `union_openid`；本项目依赖 `third_party/QQBot.Net` fork 的 `SocketMessage.Author*` 属性。升级 SDK 时先同步 fork，不要直接换回 NuGet 包。

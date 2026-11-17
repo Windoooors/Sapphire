@@ -210,6 +210,42 @@ public static class SettingsItems
         },
         new()
         {
+            Name = "迁移",
+            Items =
+            [
+                new SettingsItem
+                {
+                    DisplayName = "启用",
+                    Identifier = "migrate.enabled"
+                }
+            ]
+        },
+        new()
+        {
+            Name = "Who Am I",
+            Items =
+            [
+                new SettingsItem
+                {
+                    DisplayName = "启用",
+                    Identifier = "whoami.enabled"
+                }
+            ]
+        },
+        new()
+        {
+            Name = "帮助",
+            Items =
+            [
+                new SettingsItem
+                {
+                    DisplayName = "启用",
+                    Identifier = "help.enabled"
+                }
+            ]
+        },
+        new()
+        {
             Name = "杂项",
             Items =
             [
@@ -240,7 +276,10 @@ public static class SettingsItems
         { "marry.enabled", true },
         { "group_member_alias.enabled", true },
         { "rape.enabled", true },
-        { "gay_factor.enabled", true }
+        { "gay_factor.enabled", true },
+        { "migrate.enabled", true },
+        { "whoami.enabled", true },
+        { "help.enabled", true },
     };
 }
 

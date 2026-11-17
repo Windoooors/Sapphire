@@ -15,10 +15,10 @@ public class WhoAmICommand : CommandBase
     {
         var stringBuilder = new StringBuilder();
 
-        stringBuilder.AppendLine($"场景：{(context.IsGroup ? "群聊" : "单聊")}");
+        stringBuilder.AppendLine($"场景：{(context.IsGroup ? "群聊" : "私聊")}");
         stringBuilder.AppendLine($"ChatId：{context.ChatId}");
-        stringBuilder.AppendLine($"CanonicalUserId：{context.UserId}");
-        stringBuilder.AppendLine($"SceneUserId：{context.SceneUserId}");
+        stringBuilder.AppendLine($"UserId：{context.UserId}");
+        stringBuilder.AppendLine($"UserIdInGroup：{context.SceneUserId}");
 
         if (!string.IsNullOrWhiteSpace(context.UnionOpenId))
             stringBuilder.AppendLine($"UnionOpenId：{context.UnionOpenId}");

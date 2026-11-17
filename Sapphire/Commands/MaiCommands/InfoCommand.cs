@@ -40,6 +40,22 @@ public class InfoCommand : MaiCommandBase
         ];
     }
 
+    protected override async Task ProcessDirectly(MessageContext context)
+    {
+        if (!context.Content.EndsWith("是什么歌"))
+        {
+            return;
+        }
+        
+        var songReference = context.Content.Substring(0, context.Content.Length - 4);
+
+        await ProcessWithArguments(new CommandContext
+        {
+            Argument = songReference,
+            Flags = []
+        }, context);
+    }
+
     protected override async Task ProcessWithArguments(CommandContext commandContext, MessageContext context)
     {
         var startTime = DateTime.UtcNow;

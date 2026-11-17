@@ -1,4 +1,4 @@
-using Sapphire.Data.GroupMember;
+﻿using Sapphire.Data.GroupMember;
 using Sapphire.ImageGeneration;
 using Sapphire.Messages;
 
@@ -237,21 +237,26 @@ public class MarryCommand : GroupMemberCommandBase
         MessageContext context,
         string userId)
     {
-        var nickname = await GetNickname(userId, context.ChatId, true);
-
         if (GroupMemberDataManager.Instance == null)
             return false;
 
+        var sceneUserId = GroupMemberDataManager.Instance.GetSceneUserId(context.ChatId, userId);
+        var nickname = await GetNickname(userId, context.ChatId, true);
+
         if (nickname == null)
         {
-            await GroupMemberDataManager.Instance.RemoveUserFromPool(
-                userId,
-                context.ChatId);
+            var inGroup = await IsUserInGroupAsync(context, userId, sceneUserId);
 
-            return false;
+            if (inGroup == false)
+            {
+                await GroupMemberDataManager.Instance.RemoveUserFromPool(userId, context.ChatId);
+                return false;
+            }
+
+            nickname = await GetNickname(userId, context.ChatId, true) ?? userId;
         }
 
-        var sceneUserId = GroupMemberDataManager.Instance.GetSceneUserId(context.ChatId, userId) ?? userId;
+        sceneUserId ??= userId;
 
         var avatarBase64 = await ImageGeneratorFunctions.GetUserAvatarBase64Async(sceneUserId, 640);
 

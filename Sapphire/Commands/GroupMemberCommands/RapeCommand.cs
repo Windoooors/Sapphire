@@ -1,4 +1,4 @@
-using Sapphire.Data.GroupMember;
+﻿using Sapphire.Data.GroupMember;
 using Sapphire.Environments;
 using Sapphire.ImageGeneration;
 using Sapphire.Messages;
@@ -13,6 +13,33 @@ public class RapeCommand : GroupMemberCommandBase
         CommandHeads = ["日", "透", "透群友"];
         DirectCommandHeads = ["日", "透", "透群友"];
         ActivationSettingsIdentifier = "rape.enabled";
+    }
+    
+    protected override async Task ProcessDirectly(MessageContext context)
+    {
+        if (!(context.Content.StartsWith("日") || context.Content.StartsWith("透") || context.Content.StartsWith("操") ||
+            context.Content.StartsWith("干")))
+        {
+            return;
+        }
+        
+        var userReference = context.Content.Substring(1, context.Content.Length - 1);
+        if (userReference.StartsWith(" "))
+        {
+            return;
+        }
+        
+        if (!TryGetUsers(context, userReference, out var userIds) || userIds == null ||
+            GroupMemberDataManager.Instance == null || userIds.Length is > 1 or 0)
+        {
+            return;
+        }
+
+        await ProcessWithArguments(new CommandContext()
+        {
+            Argument = userReference,
+            Flags = []
+        }, context);
     }
 
     protected override async Task ProcessWithArguments(CommandContext commandContext, MessageContext context)
@@ -134,20 +161,26 @@ public class RapeCommand : GroupMemberCommandBase
 
     private async Task<bool> SendPairingMessage(MessageContext context, string userId)
     {
-        var nickname = await GetNickname(userId, context.ChatId, true);
-
         if (GroupMemberDataManager.Instance == null)
             return false;
 
+        var sceneUserId = GroupMemberDataManager.Instance.GetSceneUserId(context.ChatId, userId);
+        var nickname = await GetNickname(userId, context.ChatId, true);
+
         if (nickname == null)
         {
-            await GroupMemberDataManager.Instance.RemoveUserFromPool(context.UserId,
-                context.ChatId);
+            var inGroup = await IsUserInGroupAsync(context, userId, sceneUserId);
 
-            return false;
+            if (inGroup == false)
+            {
+                await GroupMemberDataManager.Instance.RemoveUserFromPool(userId, context.ChatId);
+                return false;
+            }
+
+            nickname = await GetNickname(userId, context.ChatId, true) ?? userId;
         }
 
-        var sceneUserId = GroupMemberDataManager.Instance.GetSceneUserId(context.ChatId, userId) ?? userId;
+        sceneUserId ??= userId;
 
         var avatarBase64 = await ImageGeneratorFunctions.GetUserAvatarBase64Async(sceneUserId, 640);
 

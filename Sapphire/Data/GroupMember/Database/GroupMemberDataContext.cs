@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using Sapphire.Data.GroupMember.Dtos;
 using Sapphire.Environments;
 
@@ -9,6 +9,8 @@ public class GroupMemberDataContext : DbContext
     public DbSet<GroupMemberAliasDto> GroupMemberAliases { get; set; }
     public DbSet<GroupMemberDto> GroupMembers { get; set; }
     public DbSet<GroupMemberMarriageDto> GroupMemberMarriages { get; set; }
+    public DbSet<KnownNameDto> KnownNames { get; set; }
+    public DbSet<DisplayNameDto> DisplayNames { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -29,6 +31,17 @@ public class GroupMemberDataContext : DbContext
         marriageEntityBuilder.Property(x => x.UserId).HasMaxLength(64).IsRequired();
         marriageEntityBuilder.Property(x => x.PartnerId).HasMaxLength(64).IsRequired();
         marriageEntityBuilder.Property(x => x.GroupId).HasMaxLength(64).IsRequired();
+
+        var knownNameEntityBuilder = modelBuilder.Entity<KnownNameDto>();
+        knownNameEntityBuilder.HasKey(x => x.UserId);
+        knownNameEntityBuilder.Property(x => x.UserId).HasMaxLength(64).IsRequired();
+        knownNameEntityBuilder.Property(x => x.DisplayName).HasMaxLength(128).IsRequired();
+
+        var displayNameEntityBuilder = modelBuilder.Entity<DisplayNameDto>();
+        displayNameEntityBuilder.HasKey(x => new { x.GroupId, x.UserId });
+        displayNameEntityBuilder.Property(x => x.GroupId).HasMaxLength(64).IsRequired();
+        displayNameEntityBuilder.Property(x => x.UserId).HasMaxLength(64).IsRequired();
+        displayNameEntityBuilder.Property(x => x.DisplayName).HasMaxLength(128).IsRequired();
     }
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)

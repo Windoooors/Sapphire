@@ -1,8 +1,10 @@
+﻿using System.Collections.Concurrent;
 using Microsoft.EntityFrameworkCore;
 using Sapphire.Data.GroupMember.Database;
 using Sapphire.Data.GroupMember.Dtos;
 using Sapphire.Environments;
 using Sapphire.Utils;
+using Serilog;
 
 namespace Sapphire.Data.GroupMember;
 
@@ -11,6 +13,7 @@ public class GroupMemberDataManager
     public static GroupMemberDataManager? Instance;
 
     private readonly Lock _reloadLock = new();
+    private static readonly SemaphoreSlim NameSaveLock = new(1, 1);
 
     public GroupMemberDataManager()
     {
@@ -33,6 +36,19 @@ public class GroupMemberDataManager
             if (!string.IsNullOrEmpty(alias.SceneUserId))
                 SceneUserIds[(alias.GroupId, alias.UserId)] = alias.SceneUserId;
 
+        try
+        {
+            foreach (var knownName in context.KnownNames.AsNoTracking().ToList())
+                KnownNames[knownName.UserId] = knownName.DisplayName;
+
+            foreach (var displayName in context.DisplayNames.AsNoTracking().ToList())
+                DisplayNames[(displayName.GroupId, displayName.UserId)] = displayName.DisplayName;
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Failed to load known/display names");
+        }
+
         BakeIndexingData();
     }
 
@@ -47,14 +63,19 @@ public class GroupMemberDataManager
     public Dictionary<string, HashSet<string>> UserPool { get; } = [];
 
     /// <summary>
+    ///     canonical 用户 ID → 最近一次已知展示名。跨群、跨重启可用。
+    /// </summary>
+    public ConcurrentDictionary<string, string> KnownNames { get; } = new(StringComparer.Ordinal);
+
+    /// <summary>
     ///     (群 ID, canonical 用户 ID) → 当前群内的 member_openid。
     /// </summary>
     public Dictionary<(string groupId, string userId), string> SceneUserIds { get; } = [];
 
     /// <summary>
-    ///     (群 ID, canonical 用户 ID) → 展示名。来自消息事件，进程重启后需要重新积累。
+    ///     (群 ID, canonical 用户 ID) → 当前群展示名。
     /// </summary>
-    public Dictionary<(string groupId, string userId), string> DisplayNames { get; } = [];
+    public ConcurrentDictionary<(string groupId, string userId), string> DisplayNames { get; } = new();
 
     /// <summary>
     ///     迁移服务直接写库后，重新读取别名/成员并重建内存索引。
@@ -85,6 +106,23 @@ public class GroupMemberDataManager
                 if (!string.IsNullOrEmpty(alias.SceneUserId))
                     SceneUserIds[(alias.GroupId, alias.UserId)] = alias.SceneUserId;
 
+            try
+            {
+                var knownNames = context.KnownNames.AsNoTracking().ToList();
+                KnownNames.Clear();
+                foreach (var knownName in knownNames)
+                    KnownNames[knownName.UserId] = knownName.DisplayName;
+
+                var displayNames = context.DisplayNames.AsNoTracking().ToList();
+                DisplayNames.Clear();
+                foreach (var displayName in displayNames)
+                    DisplayNames[(displayName.GroupId, displayName.UserId)] = displayName.DisplayName;
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Failed to reload known/display names");
+            }
+
             BakeIndexingData();
         }
     }
@@ -99,13 +137,108 @@ public class GroupMemberDataManager
         return DisplayNames.GetValueOrDefault((groupId, userId));
     }
 
+    public string? GetKnownName(string userId)
+    {
+        return KnownNames.GetValueOrDefault(userId);
+    }
+
+    public void RememberName(string userId, string? displayName)
+    {
+        if (string.IsNullOrWhiteSpace(displayName))
+            return;
+
+        if (KnownNames.TryGetValue(userId, out var knownName) && knownName == displayName)
+            return;
+
+        KnownNames[userId] = displayName;
+
+        _ = SaveKnownNameAsync(userId, displayName);
+    }
+
+    private static async Task SaveKnownNameAsync(string userId, string displayName)
+    {
+        await NameSaveLock.WaitAsync();
+
+        try
+        {
+            await using var context = new GroupMemberDataContext();
+            var entity = await context.KnownNames.FindAsync(userId);
+
+            if (entity == null)
+                context.KnownNames.Add(new KnownNameDto
+                {
+                    UserId = userId,
+                    DisplayName = displayName,
+                    UpdatedAt = DateTime.UtcNow
+                });
+            else
+            {
+                entity.DisplayName = displayName;
+                entity.UpdatedAt = DateTime.UtcNow;
+            }
+
+            await context.SaveChangesAsync();
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Failed to persist known name for {UserId}", userId);
+        }
+        finally
+        {
+            NameSaveLock.Release();
+        }
+    }
+
     public void UpdateUser(string groupId, string userId, string sceneUserId, string? displayName)
     {
         if (!string.IsNullOrEmpty(sceneUserId))
             SceneUserIds[(groupId, userId)] = sceneUserId;
 
-        if (!string.IsNullOrWhiteSpace(displayName))
-            DisplayNames[(groupId, userId)] = displayName;
+        if (string.IsNullOrWhiteSpace(displayName))
+            return;
+
+        if (DisplayNames.TryGetValue((groupId, userId), out var existingName) &&
+            existingName == displayName)
+            return;
+
+        DisplayNames[(groupId, userId)] = displayName;
+
+        _ = SaveDisplayNameAsync(groupId, userId, displayName);
+    }
+
+    private static async Task SaveDisplayNameAsync(string groupId, string userId, string displayName)
+    {
+        await NameSaveLock.WaitAsync();
+
+        try
+        {
+            await using var context = new GroupMemberDataContext();
+            var entity = await context.DisplayNames.FindAsync(groupId, userId);
+
+            if (entity == null)
+                context.DisplayNames.Add(new DisplayNameDto
+                {
+                    GroupId = groupId,
+                    UserId = userId,
+                    DisplayName = displayName,
+                    UpdatedAt = DateTime.UtcNow
+                });
+            else
+            {
+                entity.DisplayName = displayName;
+                entity.UpdatedAt = DateTime.UtcNow;
+            }
+
+            await context.SaveChangesAsync();
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Failed to persist display name for {UserId} in {GroupId}", userId, groupId);
+        }
+        finally
+        {
+            NameSaveLock.Release();
+        }
     }
 
     public List<string> FindUserIds(string groupId, string key)

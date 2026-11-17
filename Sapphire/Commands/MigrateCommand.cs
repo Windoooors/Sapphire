@@ -25,18 +25,12 @@ public class MigrateCommand : CommandBase
             }
         ];
     }
-
-    protected override async Task Process(MessageContext context)
-    {
-        await SendMessage(context,
-            "用法：\n群聊：migrate <QQ号> --group <旧群号>\n私聊：migrate <QQ号>（只迁移成绩和私聊设置）");
-    }
-
+    
     protected override async Task ProcessWithArguments(CommandContext commandContext, MessageContext context)
     {
         if (!MigrationServer.IsRunning)
         {
-            await SendMessage(context, "迁移服务未启用，请先在主 bot 配置中开启 [Migration]");
+            await SendMessage(context, "迁移服务未启用");
             return;
         }
 
@@ -67,7 +61,7 @@ public class MigrateCommand : CommandBase
 
             if (string.IsNullOrWhiteSpace(legacyGroupString))
             {
-                await SendMessage(context, "群聊迁移必须提供 --group <旧群号>");
+                await SendArgumentError(context);
                 return;
             }
 
@@ -91,13 +85,13 @@ public class MigrateCommand : CommandBase
             LegacyGroupId = legacyGroupId
         };
 
-        await SendMessage(context, "正在从旧库迁移，请稍候…");
+        await SendMessage(context, "正在尝试迁移，请稍等");
 
         var response = await MigrationServer.RequestAsync(request, TimeSpan.FromSeconds(90));
 
         if (response == null)
         {
-            await SendMessage(context, "迁移服务未连接或响应超时，请确认 Sapphire.Migration 已启动");
+            await SendMessage(context, "迁移服务未连接或响应超时");
             return;
         }
 
@@ -123,9 +117,9 @@ public class MigrateCommand : CommandBase
 
         if (context.IsGroup)
             await SendMessage(context,
-                $"迁移完成：成绩 {response.Scores} 条，别名 {response.Aliases} 条，群成员 {response.Members} 条，设置 {response.Settings} 条");
+                $"迁移完成：成绩 {response.Scores} 条\n别名 {response.Aliases} 条\n群成员 {response.Members} 条\n设置 {response.Settings} 条");
         else
             await SendMessage(context,
-                $"迁移完成：成绩 {response.Scores} 条，私聊设置 {response.Settings} 条");
+                $"迁移完成：成绩 {response.Scores} 条\n设置 {response.Settings} 条");
     }
 }

@@ -23,10 +23,7 @@ public class SettingsDataManager
     }
 
     public static SettingsDataManager? Instance { get; private set; }
-
-    /// <summary>
-    ///     迁移服务直接写库后，重新读取设置表。
-    /// </summary>
+    
     public void Reload()
     {
         using var context = new SettingsMetadataContext();
@@ -72,7 +69,6 @@ public class SettingsDataManager
 
     private static string GetChatId(MessageContext context)
     {
-        // 群设置按 group_openid；单聊设置按 canonical 用户 ID，迁移后才能跨场景生效。
         return context.IsGroup ? context.ChatId : context.UserId;
     }
 }

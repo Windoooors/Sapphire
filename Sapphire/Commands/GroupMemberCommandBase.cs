@@ -1,20 +1,20 @@
-﻿using System.Collections.Concurrent;
+﻿using System.Net;
 using System.Text;
+using QQBot.Net;
+using QQBot.WebSocket;
 using Sapphire.Commands.GroupMemberCommands;
 using Sapphire.Data.GroupMember;
+using Serilog;
 
 namespace Sapphire.Commands;
 
 public abstract class GroupMemberCommandBase : CommandBase
 {
-    private static readonly ConcurrentDictionary<string, string> KnownNames = new(StringComparer.Ordinal);
-
     protected static GroupMemberDataManager? DataManager;
 
     public static void RememberName(string userId, string? displayName)
     {
-        if (!string.IsNullOrWhiteSpace(displayName))
-            KnownNames[userId] = displayName;
+        GroupMemberDataManager.Instance?.RememberName(userId, displayName);
     }
 
     public static bool TryGetUsers(MessageContext context, string key, out string[]? userIds)
@@ -78,16 +78,54 @@ public abstract class GroupMemberCommandBase : CommandBase
         if (!string.IsNullOrWhiteSpace(groupName))
             return Task.FromResult<string?>(groupName);
 
-        return KnownNames.TryGetValue(userId, out var name)
-            ? Task.FromResult<string?>(name)
-            : Task.FromResult<string?>(null);
+        return Task.FromResult(GroupMemberDataManager.Instance?.GetKnownName(userId));
     }
 
     public static Task<string?> GetNickname(string userId)
     {
-        return KnownNames.TryGetValue(userId, out var name)
-            ? Task.FromResult<string?>(name)
-            : Task.FromResult<string?>(null);
+        return Task.FromResult(GroupMemberDataManager.Instance?.GetKnownName(userId));
+    }
+
+    /// <summary>
+    ///     查询目标用户当前是否仍在群里。
+    ///     返回 <see langword="true" /> 表示在群，<see langword="false" /> 表示接口明确返回不存在，
+    ///     <see langword="null" /> 表示接口不可用或无法判断（此时绝不能删除用户）。
+    /// </summary>
+    public static async Task<bool?> IsUserInGroupAsync(MessageContext context, string userId, string? sceneUserId)
+    {
+        if (!context.IsGroup || context.Channel is not SocketGroupChannel groupChannel)
+            return null;
+
+        if (string.IsNullOrWhiteSpace(sceneUserId) || !Guid.TryParse(sceneUserId, out var memberId))
+            return null;
+
+        try
+        {
+            var member = await groupChannel.GetMemberAsync(memberId);
+
+            if (member == null)
+                return false;
+
+            RememberName(userId, member.Username);
+            return true;
+        }
+        catch (HttpException ex) when (ex.HttpCode == HttpStatusCode.NotFound)
+        {
+            return false;
+        }
+        catch (HttpException ex)
+        {
+            // 11253（应用无接口访问权限）等错误只代表查不了，不代表用户退群。
+            Log.Debug(ex, "Failed to query group membership for {MemberId} in {GroupId}", sceneUserId,
+                context.ChatId);
+            return null;
+        }
+        catch (Exception ex)
+        {
+            Log.Debug(ex, "Failed to query group membership for {MemberId} in {GroupId}", sceneUserId,
+                context.ChatId);
+            return null;
+        }
     }
 
     protected static async Task SendMemberNotFoundError(MessageContext context)

@@ -19,7 +19,7 @@ public static class Program
     [
         new PingCommand(), new MaiCommand(), new SettingsCommand(), new ConfirmationCommand(),
         new IcsAssistantCommand(), new WhoAmICommand(), new MigrateCommand(),
-        new GayFactor(), new GroupMemberCommand()
+        new GayFactor(), new GroupMemberCommand(), new HelpCommand()
     ];
 
     private static CommandParser? _commandParser;
