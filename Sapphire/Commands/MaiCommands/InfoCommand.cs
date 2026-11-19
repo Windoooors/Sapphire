@@ -1,6 +1,7 @@
 using Sapphire.Data.GroupMember;
 using Sapphire.Data.Mai;
 using Sapphire.Data.Mai.Dtos;
+using Sapphire.Data.Settings;
 using Sapphire.Environments;
 using Sapphire.ImageGeneration;
 using Sapphire.ImageGeneration.ImageGenerators.MaiCommandImageGenerators;
@@ -42,6 +43,9 @@ public class InfoCommand : MaiCommandBase
 
     protected override async Task ProcessDirectly(MessageContext context)
     {
+        if (!(SettingsDataManager.Instance?.GetValue(context, "lite_commands.enabled") ?? false))
+            return;
+        
         if (!context.Content.EndsWith("是什么歌"))
         {
             return;

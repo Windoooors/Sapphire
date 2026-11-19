@@ -1,4 +1,4 @@
-﻿using System.Collections.Concurrent;
+using System.Collections.Concurrent;
 using Microsoft.EntityFrameworkCore;
 using Sapphire.Data.GroupMember.Database;
 using Sapphire.Data.GroupMember.Dtos;
@@ -271,6 +271,17 @@ public class GroupMemberDataManager
         return context.GroupMemberMarriages.AsNoTracking()
             .Where(x => x.MarriedAt >= dayStart)
             .ToList();
+    }
+
+    public async Task RemoveExpiredMarriagesAsync()
+    {
+        await using var context = new GroupMemberDataContext();
+
+        var dayStart = GetCurrentDayStart();
+
+        await context.GroupMemberMarriages
+            .Where(x => x.MarriedAt < dayStart)
+            .ExecuteDeleteAsync();
     }
 
     public async Task AddMarriages(string groupId, IEnumerable<(string UserId, string PartnerId)> marriages,

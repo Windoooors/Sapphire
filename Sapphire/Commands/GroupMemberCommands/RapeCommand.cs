@@ -1,4 +1,5 @@
 ﻿using Sapphire.Data.GroupMember;
+using Sapphire.Data.Settings;
 using Sapphire.Environments;
 using Sapphire.ImageGeneration;
 using Sapphire.Messages;
@@ -17,6 +18,9 @@ public class RapeCommand : GroupMemberCommandBase
     
     protected override async Task ProcessDirectly(MessageContext context)
     {
+        if (!(SettingsDataManager.Instance?.GetValue(context, "lite_commands.enabled") ?? false))
+            return;
+        
         if (!(context.Content.StartsWith("日") || context.Content.StartsWith("透") || context.Content.StartsWith("操") ||
             context.Content.StartsWith("干")))
         {

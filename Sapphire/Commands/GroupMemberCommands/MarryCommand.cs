@@ -1,4 +1,4 @@
-﻿using Sapphire.Data.GroupMember;
+using Sapphire.Data.GroupMember;
 using Sapphire.ImageGeneration;
 using Sapphire.Messages;
 
@@ -110,13 +110,19 @@ public class MarryCommand : GroupMemberCommandBase
         if (manager == null)
             return null;
 
+        await manager.RemoveExpiredMarriagesAsync();
+
         List<(string UserId, string PartnerId)> removedPairs;
         (string UserId, string PartnerId)? addedPair = null;
         string? partnerId;
-        var marriedAt = DateTime.UtcNow;
+        DateTime marriedAt;
 
         lock (PairingLock)
         {
+            CleanupExpiredPairings(manager);
+
+            marriedAt = DateTime.UtcNow;
+
             if (!Pairings.TryGetValue(groupId, out var pairs))
             {
                 pairs = new Dictionary<string, Pairing>();
@@ -126,13 +132,6 @@ public class MarryCommand : GroupMemberCommandBase
             var members = groupMembers.Distinct().ToHashSet();
 
             removedPairs = CleanupInvalidPairings(members, pairs);
-
-            if (pairs.TryGetValue(currentUserId, out var currentPairing) &&
-                manager.IsMarriageExpired(currentPairing.MarriedAt))
-            {
-                removedPairs.Add((currentUserId, currentPairing.PartnerId));
-                RemovePairFromMemory(pairs, currentUserId, currentPairing.PartnerId);
-            }
 
             if (pairs.TryGetValue(currentUserId, out var activePairing))
             {
@@ -168,6 +167,29 @@ public class MarryCommand : GroupMemberCommandBase
             await manager.AddMarriages(groupId, [added], marriedAt);
 
         return partnerId;
+    }
+
+    private static void CleanupExpiredPairings(GroupMemberDataManager manager)
+    {
+        foreach (var groupPairings in Pairings.ToArray())
+        {
+            var pairs = groupPairings.Value;
+
+            foreach (var (userId, pairing) in pairs.ToArray())
+            {
+                if (!manager.IsMarriageExpired(pairing.MarriedAt))
+                    continue;
+
+                pairs.Remove(userId);
+
+                if (pairs.TryGetValue(pairing.PartnerId, out var reversePairing) &&
+                    reversePairing.PartnerId == userId)
+                    pairs.Remove(pairing.PartnerId);
+            }
+
+            if (pairs.Count == 0)
+                Pairings.Remove(groupPairings.Key);
+        }
     }
 
     private static List<(string UserId, string PartnerId)> CleanupInvalidPairings(
